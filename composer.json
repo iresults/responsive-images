@@ -1,0 +1,22 @@
+{
+    "name": "iresults/responsive-images",
+    "type": "typo3-cms-extension",
+    "license": "GPL-2.0",
+    "autoload": {
+        "psr-4": {
+            "Iresults\\ResponsiveImages\\": "Classes/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Daniel Corn",
+            "email": "daniel@iresults.li"
+        }
+    ],
+    "require": {},
+    "extra": {
+        "typo3/cms": {
+            "extension-key": "responsive_images"
+        }
+    }
+}

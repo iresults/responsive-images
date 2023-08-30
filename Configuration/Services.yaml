@@ -1,0 +1,15 @@
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  Iresults\ResponsiveImages\:
+    resource: '../Classes/*'
+    exclude: '../Classes/Domain/*'
+
+  Iresults\ResponsiveImages\Service\ImageResizingService:
+    public: true
+
+  Iresults\ResponsiveImages\Service\SizesParser:
+    public: true
