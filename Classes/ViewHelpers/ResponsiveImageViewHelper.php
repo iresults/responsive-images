@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Iresults\ResponsiveImages\ViewHelpers;
 
+use InvalidArgumentException;
 use Iresults\ResponsiveImages\Domain\ValueObject\CropInformation;
 use Iresults\ResponsiveImages\Domain\ValueObject\SizeDefinition;
 use Iresults\ResponsiveImages\Service\ImageResizingService;
 use Iresults\ResponsiveImages\Service\SizesParser;
+use RuntimeException;
 use TYPO3\CMS\Core\Imaging\ImageManipulation\Area;
 use TYPO3\CMS\Core\Imaging\ImageManipulation\CropVariantCollection;
 use TYPO3\CMS\Core\Resource\Exception\ResourceDoesNotExistException;
@@ -106,37 +108,32 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
     {
         parent::initializeArguments();
         $this->registerUniversalTagAttributes();
-        $this->registerTagAttribute(
+        $this->registerArgument(
             'alt',
             'string',
             'Specifies an alternate text for an image',
             false
         );
-        $this->registerTagAttribute(
+        $this->registerArgument(
             'ismap',
             'string',
             'Specifies an image as a server-side image-map. Rarely used. Look at usemap instead',
             false
         );
-        $this->registerTagAttribute(
-            'longdesc',
-            'string',
-            'Specifies the URL to a document that contains a long description of an image',
-            false
-        );
-        $this->registerTagAttribute(
+
+        $this->registerArgument(
             'usemap',
             'string',
             'Specifies an image as a client-side image-map',
             false
         );
-        $this->registerTagAttribute(
+        $this->registerArgument(
             'loading',
             'string',
             'Native lazy-loading for images property. Can be "lazy", "eager" or "auto"',
             false
         );
-        $this->registerTagAttribute(
+        $this->registerArgument(
             'decoding',
             'string',
             'Provides an image decoding hint to the browser. Can be "sync", "async" or "auto"',
@@ -214,18 +211,20 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
                 $imageTag
             );
 
-            // The alt-attribute is mandatory to have valid html-code, therefore add it even if it is empty
-            if (empty($this->arguments['alt'])) {
-                $imageTag->addAttribute(
-                    'alt',
-                    $image->hasProperty('alternative') ? $image->getProperty('alternative') : ''
-                );
-            }
-            // Add title-attribute from property if not already set and the property is not an empty string
-            $title = (string)($image->hasProperty('title') ? $image->getProperty('title') : '');
-            if (empty($this->arguments['title']) && $title !== '') {
+            // Remove the `title` attribute from <picture> and add it to <img>
+            $pictureTag->removeAttribute('title');
+            $title = $this->arguments['title']
+                ?? (string)($image->hasProperty('title') ? $image->getProperty('title') : '');
+            if ($title !== '') {
                 $imageTag->addAttribute('title', $title);
             }
+            $altAttribute = $this->arguments['alt']
+                ?? ($image->hasProperty('alternative') ? $image->getProperty('alternative') : '');
+            $imageTag->addAttribute('alt', $altAttribute);
+            $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'ismap');
+            $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'usemap');
+            $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'loading');
+            $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'decoding');
 
             $pictureTagContent .= $imageTag->render();
             $this->tag->setContent($pictureTagContent);
@@ -235,10 +234,10 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         } catch (UnexpectedValueException $e) {
             // thrown if a file has been replaced with a folder
             throw new Exception($e->getMessage(), 1509741912, $e);
-        } catch (\RuntimeException $e) {
-            // RuntimeException thrown if a file is outside of a storage
+        } catch (RuntimeException $e) {
+            // RuntimeException thrown if a file is outside a storage
             throw new Exception($e->getMessage(), 1509741913, $e);
-        } catch (\InvalidArgumentException $e) {
+        } catch (InvalidArgumentException $e) {
             // thrown if file storage does not exist
             throw new Exception($e->getMessage(), 1509741914, $e);
         }
@@ -246,11 +245,10 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         return $this->tag->render();
     }
 
-
     private function getImage(array $arguments): File|FileReference
     {
         if (empty($arguments['image'])) {
-            throw new \InvalidArgumentException('Missing image');
+            throw new InvalidArgumentException('Missing image');
         }
         $image = $arguments['image'];
         if ($image instanceof File || $image instanceof FileReference) {
@@ -348,12 +346,19 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
                     $srcsetLine .= ' ' . $resizedImage->pixelDensity . 'x';
                 }
                 $srcsetOutput[] = $srcsetLine;
-                
-                if ($size->isDefault && (int)$pixelDensity === 1) {
-                    $imageTag->addAttribute('src', $resizedImage->getPublicUrl($useAbsoluteUri));
-                    $imageTag->addAttribute('width', $resizedImage->file->getProperty('width'));
-                    $imageTag->addAttribute('height', $resizedImage->file->getProperty('height'));
-                }
+            }
+
+            if ($size->isDefault) {
+                $resizedFallbackImage = $this->imageResizingService->resize(
+                    $image,
+                    $size,
+                    1.0,
+                    $crop,
+                    $fileExtension
+                );
+                $imageTag->addAttribute('src', $resizedFallbackImage->getPublicUrl($useAbsoluteUri));
+                $imageTag->addAttribute('width', $resizedFallbackImage->file->getProperty('width'));
+                $imageTag->addAttribute('height', $resizedFallbackImage->file->getProperty('height'));
             }
 
             $sourceTag->addAttribute('srcset', implode(', ', $srcsetOutput));
@@ -363,5 +368,12 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         }
 
         return $pictureTagContent;
+    }
+
+    private function addAttributeIfArgumentIsSet(TagBuilder $imageTag, array $arguments, string $attributeName): void
+    {
+        if (isset($arguments[$attributeName]) && '' !== $arguments[$attributeName]) {
+            $imageTag->addAttribute($attributeName, $arguments[$attributeName]);
+        }
     }
 }
