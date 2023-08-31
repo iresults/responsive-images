@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Iresults\ResponsiveImages\ViewHelpers;
 
 use InvalidArgumentException;
+use Iresults\ResponsiveImages\Domain\Enum\SpecialFunction;
 use Iresults\ResponsiveImages\Domain\ValueObject\CropInformation;
 use Iresults\ResponsiveImages\Domain\ValueObject\SizeDefinition;
 use Iresults\ResponsiveImages\Service\ImageResizingService;
@@ -179,7 +180,18 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
             false,
             ''
         );
-        $this->registerArgument('absolute', 'bool', 'Force absolute URL', false, false);
+        $this->registerArgument(
+            'absolute',
+            'bool',
+            'Force absolute URL',
+            false,
+            false
+        );
+        $this->registerArgument(
+            'specialFunction',
+            'string',
+            'Special function to apply when manipulating the images (e.g. "square")',
+        );
     }
 
     public function render(): string
@@ -192,6 +204,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         $pixelDensities = $this->parsePixelDensities($this->arguments['pixelDensities']);
         $fileExtension = $this->arguments['fileExtension'] ?? '';
         $useAbsoluteUri = (bool)$this->arguments['absolute'];
+        $specialFunction = $this->parseSpecialFunction();
         try {
             $cropInformation = $this->getCropInformation($image, $this->arguments);
             if (!$pictureTag->hasAttribute('data-focus-area')) {
@@ -208,7 +221,8 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
                 $cropInformation->area,
                 $fileExtension,
                 $useAbsoluteUri,
-                $imageTag
+                $imageTag,
+                $specialFunction
             );
 
             // Remove the `title` attribute from <picture> and add it to <img>
@@ -292,12 +306,12 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         if ($cropString === null && $image->hasProperty('crop') && $image->getProperty('crop')) {
             $cropString = $image->getProperty('crop');
         }
-        $cropVariantCollection = CropVariantCollection::create((string)$cropString);
-        $cropVariant = $arguments['cropVariant'] ?: 'default';
-        $cropArea = $cropVariantCollection->getCropArea($cropVariant);
-        $crop = $cropArea->isEmpty() ? null : $cropArea->makeAbsoluteBasedOnFile($image);
+        $variantCollection = CropVariantCollection::create((string)$cropString);
+        $variant = $arguments['cropVariant'] ?: 'default';
+        $cropArea = $variantCollection->getCropArea($variant);
+        $area = $cropArea->isEmpty() ? null : $cropArea->makeAbsoluteBasedOnFile($image);
 
-        return new CropInformation($cropVariantCollection, $cropVariant, $crop);
+        return new CropInformation($variantCollection, $variant, $area);
     }
 
     /**
@@ -310,13 +324,14 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
     }
 
     /**
-     * @param SizeDefinition[]   $sizes
-     * @param float[]            $pixelDensities
-     * @param File|FileReference $image
-     * @param mixed              $crop
-     * @param mixed              $fileExtension
-     * @param mixed              $useAbsoluteUri
-     * @param TagBuilder         $imageTag
+     * @param SizeDefinition[]     $sizes
+     * @param float[]              $pixelDensities
+     * @param File|FileReference   $image
+     * @param mixed                $crop
+     * @param mixed                $fileExtension
+     * @param mixed                $useAbsoluteUri
+     * @param TagBuilder           $imageTag
+     * @param SpecialFunction|null $specialFunction
      * @return string
      */
     private function renderSourceElements(
@@ -326,7 +341,8 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         Area|null $crop,
         string|null $fileExtension,
         bool $useAbsoluteUri,
-        TagBuilder $imageTag
+        TagBuilder $imageTag,
+        ?SpecialFunction $specialFunction
     ): string {
         $pictureTagContent = '';
         foreach ($sizes as $size) {
@@ -338,6 +354,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
                     $size,
                     $pixelDensity,
                     $crop,
+                    $specialFunction,
                     $fileExtension
                 );
 
@@ -354,6 +371,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
                     $size,
                     1.0,
                     $crop,
+                    $specialFunction,
                     $fileExtension
                 );
                 $imageTag->addAttribute('src', $resizedFallbackImage->getPublicUrl($useAbsoluteUri));
@@ -375,5 +393,12 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         if (isset($arguments[$attributeName]) && '' !== $arguments[$attributeName]) {
             $imageTag->addAttribute($attributeName, $arguments[$attributeName]);
         }
+    }
+
+    private function parseSpecialFunction(): ?SpecialFunction
+    {
+        return isset($this->arguments['specialFunction'])
+            ? SpecialFunction::from($this->arguments['specialFunction'])
+            : null;
     }
 }

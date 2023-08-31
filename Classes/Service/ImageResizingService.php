@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Iresults\ResponsiveImages\Service;
 
+use Iresults\ResponsiveImages\Domain\Enum\SpecialFunction;
 use Iresults\ResponsiveImages\Domain\ValueObject\ResizedImage;
 use Iresults\ResponsiveImages\Domain\ValueObject\SizeDefinition;
 use TYPO3\CMS\Core\Imaging\ImageManipulation\Area;
@@ -22,27 +23,26 @@ class ImageResizingService
         SizeDefinition $sizeDefinition,
         float $pixelDensity,
         ?Area $crop = null,
+        ?SpecialFunction $specialFunction = null,
         string $fileExtension = ''
     ): ResizedImage {
-        //        $processedFile = $this->resize(
-        //            $image,
-        //            $pixelDensity * $sizeDefinition->imageWidth,
-        //            false,
-        //            $crop,
-        //            $fileExtension
-        //        );
-
+        $pixelWidth = $pixelDensity * $sizeDefinition->imageWidth;
         $processingInstructions = [
-            'width' => $pixelDensity * $sizeDefinition->imageWidth,
-            // 'height' => $height,
+            'width' => $pixelWidth,
             'crop'  => $crop,
         ];
         if ($fileExtension) {
             $processingInstructions['fileExtension'] = $fileExtension;
         }
+        if ($specialFunction === SpecialFunction::Square) {
+            $processingInstructions['width'] = $pixelWidth . 'c';
+            $processingInstructions['height'] = $pixelWidth;
+        }
 
-        $processedFile = $this->imageService->applyProcessingInstructions($image, $processingInstructions);
-
-        return new ResizedImage($processedFile, $sizeDefinition, $pixelDensity);
+        return new ResizedImage(
+            $this->imageService->applyProcessingInstructions($image, $processingInstructions),
+            $sizeDefinition,
+            $pixelDensity
+        );
     }
 }
