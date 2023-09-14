@@ -96,6 +96,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
     protected $tagName = 'picture';
 
     private ImageResizingService $imageResizingService;
+
     private SizesParser $sizesParser;
 
     public function __construct()
