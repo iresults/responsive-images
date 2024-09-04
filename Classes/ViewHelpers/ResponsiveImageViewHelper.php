@@ -260,6 +260,9 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         return $this->tag->render();
     }
 
+    /**
+     * @param array{image?:File|FileReference|mixed} $arguments
+     */
     private function getImage(array $arguments): File|FileReference
     {
         if (empty($arguments['image'])) {
@@ -276,12 +279,14 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
             $originalResource = $image->getOriginalResource();
             if (!($originalResource instanceof File || $originalResource instanceof FileReference)) {
                 throw new UnexpectedValueException(
-                    'No original resource could be resolved for supplied file ' . get_class($image), 1625838481
+                    'No original resource could be resolved for supplied file ' . get_class($image),
+                    1625838481
                 );
             }
 
             return $originalResource;
         }
+
         throw new UnexpectedValueException('Could not get image');
     }
 
@@ -301,6 +306,9 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         }
     }
 
+    /**
+     * @param array{crop?:string|null, cropVariant:?string} $arguments
+     */
     private function getCropInformation(File|FileReference $image, array $arguments): CropInformation
     {
         $cropString = $arguments['crop'];
@@ -328,10 +336,6 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
      * @param SizeDefinition[]     $sizes
      * @param float[]              $pixelDensities
      * @param File|FileReference   $image
-     * @param mixed                $crop
-     * @param mixed                $fileExtension
-     * @param mixed                $useAbsoluteUri
-     * @param TagBuilder           $imageTag
      * @param SpecialFunction|null $specialFunction
      * @return string
      */
@@ -389,6 +393,9 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         return $pictureTagContent;
     }
 
+    /**
+     * @param array<string, string|null> $arguments
+     */
     private function addAttributeIfArgumentIsSet(TagBuilder $imageTag, array $arguments, string $attributeName): void
     {
         if (isset($arguments[$attributeName]) && '' !== $arguments[$attributeName]) {
