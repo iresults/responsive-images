@@ -409,7 +409,9 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
             }
 
             $sourceTag->addAttribute('srcset', implode(', ', $srcsetOutput));
-            $sourceTag->addAttribute('media', $size->mediaCondition);
+            if ($size->mediaCondition) {
+                $sourceTag->addAttribute('media', $size->mediaCondition);
+            }
 
             $pictureTagContent .= $sourceTag->render();
         }
