@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Iresults\ResponsiveImages\Service;
 
+use InvalidArgumentException;
 use Iresults\ResponsiveImages\Domain\ValueObject\SizeDefinition;
+use TYPO3\CMS\Core\Utility\MathUtility;
 
 use function array_map;
 use function explode;
@@ -31,15 +33,29 @@ class SizesParser
                 $size = substr($size, 0, -2);
             }
             if (false === $lastSpacePosition) {
-                $sizeDefinitions[] = SizeDefinition::defaultSizeDefinition($size);
+                $sizeDefinitions[] = SizeDefinition::defaultSizeDefinition(
+                    $this->parseAsFloat($size)
+                );
             } else {
                 $sizeDefinitions[] = SizeDefinition::withMediaCondition(
                     substr($size, 0, $lastSpacePosition),
-                    substr($size, $lastSpacePosition + 1)
+                    $this->parseAsFloat(substr($size, $lastSpacePosition + 1))
                 );
             }
         }
 
         return $sizeDefinitions;
+    }
+
+    private function parseAsFloat(string $input): float
+    {
+        if (!MathUtility::canBeInterpretedAsFloat($input)) {
+            throw new InvalidArgumentException(
+                sprintf('Size "%s" can not be parsed into a float size', $input),
+                1771516559
+            );
+        }
+
+        return (float) $input;
     }
 }
