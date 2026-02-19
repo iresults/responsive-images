@@ -7,11 +7,9 @@ namespace Iresults\ResponsiveImages\ViewHelpers;
 use InvalidArgumentException;
 use Iresults\ResponsiveImages\Domain\Enum\SpecialFunction;
 use Iresults\ResponsiveImages\Domain\ValueObject\CropInformation;
-use Iresults\ResponsiveImages\Domain\ValueObject\SizeDefinition;
-use Iresults\ResponsiveImages\Service\ImageResizingService;
 use Iresults\ResponsiveImages\Service\SizesParser;
+use Iresults\ResponsiveImages\Service\SourceElementBuilder;
 use RuntimeException;
-use TYPO3\CMS\Core\Imaging\ImageManipulation\Area;
 use TYPO3\CMS\Core\Imaging\ImageManipulation\CropVariantCollection;
 use TYPO3\CMS\Core\Resource\Exception\ResourceDoesNotExistException;
 use TYPO3\CMS\Core\Resource\File;
@@ -26,7 +24,6 @@ use function array_filter;
 use function array_map;
 use function explode;
 use function get_class;
-use function implode;
 use function is_callable;
 
 /**
@@ -95,15 +92,15 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
      */
     protected $tagName = 'picture';
 
-    private ImageResizingService $imageResizingService;
+    private readonly SizesParser $sizesParser;
 
-    private SizesParser $sizesParser;
+    private readonly SourceElementBuilder $sourceElementBuilder;
 
     public function __construct()
     {
         parent::__construct();
-        $this->imageResizingService = GeneralUtility::makeInstance(ImageResizingService::class);
         $this->sizesParser = GeneralUtility::makeInstance(SizesParser::class);
+        $this->sourceElementBuilder = GeneralUtility::makeInstance(SourceElementBuilder::class);
     }
 
     public function initializeArguments(): void
@@ -197,10 +194,10 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
 
     public function render(): string
     {
+        $this->validateFileExtensionArgument($this->arguments['fileExtension']);
+
         $pictureTag = $this->tag;
-        $imageTag = new TagBuilder('img');
         $image = $this->getImage($this->arguments);
-        $this->validateFileExtensionArgument();
         $sizes = $this->sizesParser->parseSizes($this->arguments['widths']);
         $pixelDensities = $this->parsePixelDensities($this->arguments['pixelDensities']);
         $fileExtension = $this->arguments['fileExtension'] ?? '';
@@ -220,14 +217,22 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
                 }
             }
 
-            $pictureTagContent = $this->renderSourceElements(
+            $imageTag = $this->sourceElementBuilder->buildImgTag(
+                $sizes,
+                $image,
+                $cropInformation->area,
+                $fileExtension,
+                $useAbsoluteUri,
+                $specialFunction,
+            );
+
+            $pictureTagContent = $this->sourceElementBuilder->renderSourceElements(
                 $sizes,
                 $pixelDensities,
                 $image,
                 $cropInformation->area,
                 $fileExtension,
                 $useAbsoluteUri,
-                $imageTag,
                 $specialFunction,
             );
 
@@ -236,17 +241,17 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
             $title = $this->arguments['title']
                 ?? (string) ($image->hasProperty('title') ? $image->getProperty('title') : '');
             if ('' !== $title) {
-                $imageTag->addAttribute('title', $title);
+                $imageTag?->addAttribute('title', $title);
             }
             $altAttribute = $this->arguments['alt']
                 ?? ($image->hasProperty('alternative') ? $image->getProperty('alternative') : '');
-            $imageTag->addAttribute('alt', $altAttribute);
+            $imageTag?->addAttribute('alt', $altAttribute);
             $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'ismap');
             $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'usemap');
             $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'loading');
             $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'decoding');
 
-            $pictureTagContent .= $imageTag->render();
+            $pictureTagContent .= $imageTag?->render() ?? '';
             $this->tag->setContent($pictureTagContent);
         } catch (ResourceDoesNotExistException $e) {
             // thrown if file does not exist
@@ -298,12 +303,14 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         throw new UnexpectedValueException('Could not get image');
     }
 
-    private function validateFileExtensionArgument(): void
+    private function validateFileExtensionArgument(?string $fileExtension): void
     {
+        if (empty($fileExtension)) {
+            return;
+        }
+
         $allowedImageFileExtensions = $GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext'];
-        $fileExtension = (string) $this->arguments['fileExtension'];
-        if ($fileExtension
-            && !GeneralUtility::inList($allowedImageFileExtensions, $fileExtension)) {
+        if (!GeneralUtility::inList($allowedImageFileExtensions, $fileExtension)) {
             throw new Exception(
                 'The extension ' . $fileExtension . ' is not specified in $GLOBALS[\'TYPO3_CONF_VARS\'][\'GFX\'][\'imagefile_ext\']'
                 . ' as a valid image file extension and can not be processed.',
@@ -348,87 +355,6 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         }
 
         return $pixelDensities;
-    }
-
-    /**
-     * @param SizeDefinition[]       $sizes
-     * @param non-empty-array<float> $pixelDensities
-     */
-    private function renderSourceElements(
-        array $sizes,
-        array $pixelDensities,
-        File|FileReference $image,
-        ?Area $crop,
-        ?string $fileExtension,
-        bool $useAbsoluteUri,
-        TagBuilder $imageTag,
-        ?SpecialFunction $specialFunction,
-    ): string {
-        $pictureTagContent = '';
-        foreach ($sizes as $size) {
-            $sourceTag = new TagBuilder('source');
-            $srcsetOutput = [];
-            foreach ($pixelDensities as $pixelDensity) {
-                $resizedImage = $this->imageResizingService->resize(
-                    $image,
-                    $size,
-                    $pixelDensity,
-                    $crop,
-                    $specialFunction,
-                    $fileExtension,
-                );
-
-                $srcsetLine = $resizedImage->getPublicUrl($useAbsoluteUri);
-                if (1.0 !== $resizedImage->pixelDensity) {
-                    $srcsetLine .= ' ' . $resizedImage->pixelDensity . 'x';
-                }
-
-                if (empty($srcsetOutput)) {
-                    $sourceTag->addAttribute(
-                        'width',
-                        $resizedImage->file->getProperty('width')
-                    );
-                    $sourceTag->addAttribute(
-                        'height',
-                        $resizedImage->file->getProperty('height')
-                    );
-                }
-
-                $srcsetOutput[] = $srcsetLine;
-            }
-
-            if ($size->isDefault) {
-                $resizedFallbackImage = $this->imageResizingService->resize(
-                    $image,
-                    $size,
-                    1.0,
-                    $crop,
-                    $specialFunction,
-                    $fileExtension,
-                );
-                $imageTag->addAttribute(
-                    'src',
-                    $resizedFallbackImage->getPublicUrl($useAbsoluteUri)
-                );
-                $imageTag->addAttribute(
-                    'width',
-                    $resizedFallbackImage->file->getProperty('width')
-                );
-                $imageTag->addAttribute(
-                    'height',
-                    $resizedFallbackImage->file->getProperty('height')
-                );
-            }
-
-            $sourceTag->addAttribute('srcset', implode(', ', $srcsetOutput));
-            if ($size->mediaCondition) {
-                $sourceTag->addAttribute('media', $size->mediaCondition);
-            }
-
-            $pictureTagContent .= $sourceTag->render();
-        }
-
-        return $pictureTagContent;
     }
 
     /**
