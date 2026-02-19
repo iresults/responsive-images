@@ -332,16 +332,27 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
     }
 
     /**
-     * @return float[]
+     * @return non-empty-array<float>
      */
-    private function parsePixelDensities(string $pixelDensities): array
+    private function parsePixelDensities(string $rawPixelDensities): array
     {
-        return array_map('floatval', array_filter(explode(',', $pixelDensities)));
+        $pixelDensities = array_map('floatval', array_filter(explode(',', $rawPixelDensities)));
+        if (empty($pixelDensities)) {
+            throw new UnexpectedValueException(
+                sprintf(
+                    'Could not parse the pixel densities "%s"',
+                    $rawPixelDensities
+                ),
+                1771506987,
+            );
+        }
+
+        return $pixelDensities;
     }
 
     /**
-     * @param SizeDefinition[] $sizes
-     * @param float[]          $pixelDensities
+     * @param SizeDefinition[]       $sizes
+     * @param non-empty-array<float> $pixelDensities
      */
     private function renderSourceElements(
         array $sizes,
