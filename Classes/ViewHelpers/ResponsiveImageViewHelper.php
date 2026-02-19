@@ -179,7 +179,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
             'string',
             'List of additional pixel densities to render (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#srcset)',
             false,
-            '',
+            '1',
         );
         $this->registerArgument(
             'absolute',
