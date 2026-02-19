@@ -382,6 +382,18 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
                 if (1.0 !== $resizedImage->pixelDensity) {
                     $srcsetLine .= ' ' . $resizedImage->pixelDensity . 'x';
                 }
+
+                if (empty($srcsetOutput)) {
+                    $sourceTag->addAttribute(
+                        'width',
+                        $resizedImage->file->getProperty('width')
+                    );
+                    $sourceTag->addAttribute(
+                        'height',
+                        $resizedImage->file->getProperty('height')
+                    );
+                }
+
                 $srcsetOutput[] = $srcsetLine;
             }
 
