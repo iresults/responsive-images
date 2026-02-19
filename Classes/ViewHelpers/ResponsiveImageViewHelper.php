@@ -368,7 +368,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
                 );
 
                 $srcsetLine = $resizedImage->getPublicUrl($useAbsoluteUri);
-                if (1 !== (int) $resizedImage->pixelDensity) {
+                if (1.0 !== $resizedImage->pixelDensity) {
                     $srcsetLine .= ' ' . $resizedImage->pixelDensity . 'x';
                 }
                 $srcsetOutput[] = $srcsetLine;
