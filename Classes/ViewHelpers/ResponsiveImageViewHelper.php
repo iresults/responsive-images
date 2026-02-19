@@ -207,11 +207,16 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         $useAbsoluteUri = (bool) $this->arguments['absolute'];
         $specialFunction = $this->parseSpecialFunction();
         try {
+            // @phpstan-ignore argument.type
             $cropInformation = $this->getCropInformation($image, $this->arguments);
             if (!$pictureTag->hasAttribute('data-focus-area')) {
-                $focusArea = $cropInformation->variantCollection->getFocusArea($cropInformation->variant);
+                $focusArea = $cropInformation->variantCollection
+                    ->getFocusArea($cropInformation->variant);
                 if (!$focusArea->isEmpty()) {
-                    $pictureTag->addAttribute('data-focus-area', $focusArea->makeAbsoluteBasedOnFile($image));
+                    $pictureTag->addAttribute(
+                        'data-focus-area',
+                        (string) $focusArea->makeAbsoluteBasedOnFile($image)
+                    );
                 }
             }
 
@@ -275,9 +280,12 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         }
 
         if (is_callable([$image, 'getOriginalResource'])) {
-            // We have a domain model, so we need to fetch the FAL resource object from there
+            // We have a domain model, so we need to fetch the FAL resource
+            // object from there
             $originalResource = $image->getOriginalResource();
-            if (!($originalResource instanceof File || $originalResource instanceof FileReference)) {
+            $validFileType = $originalResource instanceof File
+                || $originalResource instanceof FileReference;
+            if (!($validFileType)) {
                 throw new UnexpectedValueException(
                     'No original resource could be resolved for supplied file ' . get_class($image),
                     1625838481,
@@ -292,14 +300,12 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
 
     private function validateFileExtensionArgument(): void
     {
-        if ((string) $this->arguments['fileExtension']
-            && !GeneralUtility::inList(
-                $GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext'],
-                (string) $this->arguments['fileExtension'],
-            )
-        ) {
+        $allowedImageFileExtensions = $GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext'];
+        $fileExtension = (string) $this->arguments['fileExtension'];
+        if ($fileExtension
+            && !GeneralUtility::inList($allowedImageFileExtensions, $fileExtension)) {
             throw new Exception(
-                'The extension ' . $this->arguments['fileExtension'] . ' is not specified in $GLOBALS[\'TYPO3_CONF_VARS\'][\'GFX\'][\'imagefile_ext\']'
+                'The extension ' . $fileExtension . ' is not specified in $GLOBALS[\'TYPO3_CONF_VARS\'][\'GFX\'][\'imagefile_ext\']'
                 . ' as a valid image file extension and can not be processed.',
                 1618989190,
             );
@@ -311,14 +317,16 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
      */
     private function getCropInformation(File|FileReference $image, array $arguments): CropInformation
     {
-        $cropString = $arguments['crop'];
+        $cropString = $arguments['crop'] ?? null;
         if (null === $cropString && $image->hasProperty('crop') && $image->getProperty('crop')) {
             $cropString = $image->getProperty('crop');
         }
         $variantCollection = CropVariantCollection::create((string) $cropString);
         $variant = $arguments['cropVariant'] ?: 'default';
         $cropArea = $variantCollection->getCropArea($variant);
-        $area = $cropArea->isEmpty() ? null : $cropArea->makeAbsoluteBasedOnFile($image);
+        $area = $cropArea->isEmpty()
+            ? null
+            : $cropArea->makeAbsoluteBasedOnFile($image);
 
         return new CropInformation($variantCollection, $variant, $area);
     }
@@ -375,9 +383,18 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
                     $specialFunction,
                     $fileExtension,
                 );
-                $imageTag->addAttribute('src', $resizedFallbackImage->getPublicUrl($useAbsoluteUri));
-                $imageTag->addAttribute('width', $resizedFallbackImage->file->getProperty('width'));
-                $imageTag->addAttribute('height', $resizedFallbackImage->file->getProperty('height'));
+                $imageTag->addAttribute(
+                    'src',
+                    $resizedFallbackImage->getPublicUrl($useAbsoluteUri)
+                );
+                $imageTag->addAttribute(
+                    'width',
+                    $resizedFallbackImage->file->getProperty('width')
+                );
+                $imageTag->addAttribute(
+                    'height',
+                    $resizedFallbackImage->file->getProperty('height')
+                );
             }
 
             $sourceTag->addAttribute('srcset', implode(', ', $srcsetOutput));
@@ -392,8 +409,11 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
     /**
      * @param array<string, string|null> $arguments
      */
-    private function addAttributeIfArgumentIsSet(TagBuilder $imageTag, array $arguments, string $attributeName): void
-    {
+    private function addAttributeIfArgumentIsSet(
+        TagBuilder $imageTag,
+        array $arguments,
+        string $attributeName,
+    ): void {
         if (isset($arguments[$attributeName]) && '' !== $arguments[$attributeName]) {
             $imageTag->addAttribute($attributeName, $arguments[$attributeName]);
         }
