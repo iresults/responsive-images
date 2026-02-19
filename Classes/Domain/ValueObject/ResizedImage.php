@@ -36,14 +36,6 @@ class ResizedImage
         return (int) $this->sizeDefinition->imageWidth . 'px';
     }
 
-    /**
-     * @see https://developer.mozilla.org/en-US/docs/Glossary/Intrinsic_Size
-     */
-    public function getImageIntrinsicWidth(): string
-    {
-        return $this->gets->getProperty('width') . 'w';
-    }
-
     public function getImageFileWidth(): int
     {
         return $this->file->getProperty('width');
