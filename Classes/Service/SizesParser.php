@@ -14,12 +14,11 @@ use function substr;
 
 class SizesParser
 {
-
     /**
      * Parse an <img> sizes attribute into SizeDefinitions
      *
      * @see https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#sizes
-     * @param string $sizesString
+     *
      * @return SizeDefinition[]
      */
     public function parseSizes(string $sizesString): array

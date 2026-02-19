@@ -5,8 +5,8 @@ services:
     public: false
 
   Iresults\ResponsiveImages\:
-    resource: '../Classes/*'
-    exclude: '../Classes/Domain/*'
+    resource: "../Classes/*"
+    exclude: "../Classes/Domain/*"
 
   Iresults\ResponsiveImages\Service\ImageResizingService:
     public: true

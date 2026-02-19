@@ -114,57 +114,57 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
             'alt',
             'string',
             'Specifies an alternate text for an image',
-            false
+            false,
         );
         $this->registerArgument(
             'ismap',
             'string',
             'Specifies an image as a server-side image-map. Rarely used. Look at usemap instead',
-            false
+            false,
         );
 
         $this->registerArgument(
             'usemap',
             'string',
             'Specifies an image as a client-side image-map',
-            false
+            false,
         );
         $this->registerArgument(
             'loading',
             'string',
             'Native lazy-loading for images property. Can be "lazy", "eager" or "auto"',
-            false
+            false,
         );
         $this->registerArgument(
             'decoding',
             'string',
             'Provides an image decoding hint to the browser. Can be "sync", "async" or "auto"',
-            false
+            false,
         );
 
         $this->registerArgument(
             'image',
             'object',
             'FAL object (' . File::class . ' or ' . FileReference::class . ')',
-            true
+            true,
         );
 
         $this->registerArgument(
             'crop',
             'string|bool',
-            'overrule cropping of image (setting to FALSE disables the cropping set in FileReference)'
+            'overrule cropping of image (setting to FALSE disables the cropping set in FileReference)',
         );
         $this->registerArgument(
             'cropVariant',
             'string',
             'select a cropping variant, in case multiple croppings have been specified or stored in FileReference',
             false,
-            'default'
+            'default',
         );
         $this->registerArgument(
             'fileExtension',
             'string',
-            'Custom file extension to use'
+            'Custom file extension to use',
         );
 
         $this->registerArgument(
@@ -172,21 +172,21 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
             'string',
             'Definition of media conditions and width (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#sizes)',
             false,
-            ''
+            '',
         );
         $this->registerArgument(
             'pixelDensities',
             'string',
             'List of additional pixel densities to render (https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#srcset)',
             false,
-            ''
+            '',
         );
         $this->registerArgument(
             'absolute',
             'bool',
             'Force absolute URL',
             false,
-            false
+            false,
         );
         $this->registerArgument(
             'specialFunction',
@@ -204,7 +204,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         $sizes = $this->sizesParser->parseSizes($this->arguments['widths']);
         $pixelDensities = $this->parsePixelDensities($this->arguments['pixelDensities']);
         $fileExtension = $this->arguments['fileExtension'] ?? '';
-        $useAbsoluteUri = (bool)$this->arguments['absolute'];
+        $useAbsoluteUri = (bool) $this->arguments['absolute'];
         $specialFunction = $this->parseSpecialFunction();
         try {
             $cropInformation = $this->getCropInformation($image, $this->arguments);
@@ -223,14 +223,14 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
                 $fileExtension,
                 $useAbsoluteUri,
                 $imageTag,
-                $specialFunction
+                $specialFunction,
             );
 
             // Remove the `title` attribute from <picture> and add it to <img>
             $pictureTag->removeAttribute('title');
             $title = $this->arguments['title']
-                ?? (string)($image->hasProperty('title') ? $image->getProperty('title') : '');
-            if ($title !== '') {
+                ?? (string) ($image->hasProperty('title') ? $image->getProperty('title') : '');
+            if ('' !== $title) {
                 $imageTag->addAttribute('title', $title);
             }
             $altAttribute = $this->arguments['alt']
@@ -261,7 +261,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
     }
 
     /**
-     * @param array{image?:File|FileReference|mixed} $arguments
+     * @param array{image?:File|FileReference|object} $arguments
      */
     private function getImage(array $arguments): File|FileReference
     {
@@ -280,7 +280,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
             if (!($originalResource instanceof File || $originalResource instanceof FileReference)) {
                 throw new UnexpectedValueException(
                     'No original resource could be resolved for supplied file ' . get_class($image),
-                    1625838481
+                    1625838481,
                 );
             }
 
@@ -292,16 +292,16 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
 
     private function validateFileExtensionArgument(): void
     {
-        if ((string)$this->arguments['fileExtension']
+        if ((string) $this->arguments['fileExtension']
             && !GeneralUtility::inList(
                 $GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext'],
-                (string)$this->arguments['fileExtension']
+                (string) $this->arguments['fileExtension'],
             )
         ) {
             throw new Exception(
                 'The extension ' . $this->arguments['fileExtension'] . ' is not specified in $GLOBALS[\'TYPO3_CONF_VARS\'][\'GFX\'][\'imagefile_ext\']'
                 . ' as a valid image file extension and can not be processed.',
-                1618989190
+                1618989190,
             );
         }
     }
@@ -312,10 +312,10 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
     private function getCropInformation(File|FileReference $image, array $arguments): CropInformation
     {
         $cropString = $arguments['crop'];
-        if ($cropString === null && $image->hasProperty('crop') && $image->getProperty('crop')) {
+        if (null === $cropString && $image->hasProperty('crop') && $image->getProperty('crop')) {
             $cropString = $image->getProperty('crop');
         }
-        $variantCollection = CropVariantCollection::create((string)$cropString);
+        $variantCollection = CropVariantCollection::create((string) $cropString);
         $variant = $arguments['cropVariant'] ?: 'default';
         $cropArea = $variantCollection->getCropArea($variant);
         $area = $cropArea->isEmpty() ? null : $cropArea->makeAbsoluteBasedOnFile($image);
@@ -324,7 +324,6 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
     }
 
     /**
-     * @param string $pixelDensities
      * @return float[]
      */
     private function parsePixelDensities(string $pixelDensities): array
@@ -333,21 +332,18 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
     }
 
     /**
-     * @param SizeDefinition[]     $sizes
-     * @param float[]              $pixelDensities
-     * @param File|FileReference   $image
-     * @param SpecialFunction|null $specialFunction
-     * @return string
+     * @param SizeDefinition[] $sizes
+     * @param float[]          $pixelDensities
      */
     private function renderSourceElements(
         array $sizes,
         array $pixelDensities,
         File|FileReference $image,
-        Area|null $crop,
-        string|null $fileExtension,
+        ?Area $crop,
+        ?string $fileExtension,
         bool $useAbsoluteUri,
         TagBuilder $imageTag,
-        ?SpecialFunction $specialFunction
+        ?SpecialFunction $specialFunction,
     ): string {
         $pictureTagContent = '';
         foreach ($sizes as $size) {
@@ -360,11 +356,11 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
                     $pixelDensity,
                     $crop,
                     $specialFunction,
-                    $fileExtension
+                    $fileExtension,
                 );
 
                 $srcsetLine = $resizedImage->getPublicUrl($useAbsoluteUri);
-                if ((int)$resizedImage->pixelDensity !== 1) {
+                if (1 !== (int) $resizedImage->pixelDensity) {
                     $srcsetLine .= ' ' . $resizedImage->pixelDensity . 'x';
                 }
                 $srcsetOutput[] = $srcsetLine;
@@ -377,7 +373,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
                     1.0,
                     $crop,
                     $specialFunction,
-                    $fileExtension
+                    $fileExtension,
                 );
                 $imageTag->addAttribute('src', $resizedFallbackImage->getPublicUrl($useAbsoluteUri));
                 $imageTag->addAttribute('width', $resizedFallbackImage->file->getProperty('width'));

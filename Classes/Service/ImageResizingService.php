@@ -24,7 +24,7 @@ class ImageResizingService
         float $pixelDensity,
         ?Area $crop = null,
         ?SpecialFunction $specialFunction = null,
-        string $fileExtension = ''
+        string $fileExtension = '',
     ): ResizedImage {
         $pixelWidth = $pixelDensity * $sizeDefinition->imageWidth;
         $processingInstructions = [
@@ -34,7 +34,7 @@ class ImageResizingService
         if ($fileExtension) {
             $processingInstructions['fileExtension'] = $fileExtension;
         }
-        if ($specialFunction === SpecialFunction::Square) {
+        if (SpecialFunction::Square === $specialFunction) {
             $processingInstructions['width'] = $pixelWidth . 'c';
             $processingInstructions['height'] = $pixelWidth;
         }

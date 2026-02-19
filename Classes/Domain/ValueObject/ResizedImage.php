@@ -12,7 +12,7 @@ class ResizedImage
     public function __construct(
         public readonly ProcessedFile $file,
         public readonly SizeDefinition $sizeDefinition,
-        public readonly float $pixelDensity
+        public readonly float $pixelDensity,
     ) {
     }
 
@@ -24,22 +24,20 @@ class ResizedImage
     public function getPublicUrl(bool $absolute = false): string
     {
         $imageUrl = $this->file->getPublicUrl();
-        if (!$absolute || $imageUrl === null) {
-            return (string)$imageUrl;
+        if (!$absolute || null === $imageUrl) {
+            return (string) $imageUrl;
         }
 
         return GeneralUtility::locationHeaderUrl($imageUrl);
     }
 
-
     public function getSizeDefinitionWidthInPx(): string
     {
-        return (int)$this->sizeDefinition->imageWidth . 'px';
+        return (int) $this->sizeDefinition->imageWidth . 'px';
     }
 
     /**
      * @see https://developer.mozilla.org/en-US/docs/Glossary/Intrinsic_Size
-     * @return string
      */
     public function getImageIntrinsicWidth(): string
     {
@@ -50,5 +48,4 @@ class ResizedImage
     {
         return $this->file->getProperty('width');
     }
-
 }

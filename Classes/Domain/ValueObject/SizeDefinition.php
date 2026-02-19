@@ -9,7 +9,7 @@ class SizeDefinition
     private function __construct(
         public readonly string $mediaCondition,
         public readonly string $imageWidth,
-        public readonly bool $isDefault
+        public readonly bool $isDefault,
     ) {
     }
 

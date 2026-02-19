@@ -12,7 +12,7 @@ class CropInformation
     public function __construct(
         public readonly CropVariantCollection $variantCollection,
         public readonly string $variant,
-        public readonly Area|null $area
+        public readonly ?Area $area,
     ) {
     }
 }
