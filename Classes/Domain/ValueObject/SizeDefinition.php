@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Iresults\ResponsiveImages\Domain\ValueObject;
 
-class SizeDefinition
+use Iresults\ResponsiveImages\ArrayUtility;
+
+final readonly class SizeDefinition
 {
     private function __construct(
-        public readonly string $mediaCondition,
-        public readonly float $imageWidth,
-        public readonly bool $isDefault,
+        public string $mediaCondition,
+        public float $imageWidth,
+        public bool $isDefault,
     ) {
     }
 
@@ -21,5 +23,16 @@ class SizeDefinition
     public static function defaultSizeDefinition(float $imageWidth): self
     {
         return new SizeDefinition('', $imageWidth, true);
+    }
+
+    /**
+     * @param SizeDefinition[] $sizes
+     */
+    public static function findDefault(array $sizes): ?self
+    {
+        return ArrayUtility::find(
+            $sizes,
+            fn (SizeDefinition $s) => $s->isDefault
+        );
     }
 }

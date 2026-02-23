@@ -17,18 +17,18 @@ class ResizedImage
     }
 
     /**
-     * Get public url of image depending on the environment
-     *
-     * @param bool|false $absolute Force absolute URL
+     * @return non-empty-string|null NULL if file is deleted, the generated URL otherwise
      */
-    public function getPublicUrl(bool $absolute = false): string
+    public function getPublicUrl(bool $absolute = false): ?string
     {
         $imageUrl = $this->file->getPublicUrl();
-        if (!$absolute || null === $imageUrl) {
-            return (string) $imageUrl;
+        if (null === $imageUrl) {
+            return null;
         }
 
-        return GeneralUtility::locationHeaderUrl($imageUrl);
+        return $absolute
+            ? GeneralUtility::locationHeaderUrl($imageUrl)
+            : $imageUrl;
     }
 
     public function getSizeDefinitionWidthInPx(): string

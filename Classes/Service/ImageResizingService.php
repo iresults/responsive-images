@@ -5,11 +5,8 @@ declare(strict_types=1);
 namespace Iresults\ResponsiveImages\Service;
 
 use Iresults\ResponsiveImages\Domain\Enum\SpecialFunction;
+use Iresults\ResponsiveImages\Domain\ValueObject\ResizeConfiguration;
 use Iresults\ResponsiveImages\Domain\ValueObject\ResizedImage;
-use Iresults\ResponsiveImages\Domain\ValueObject\SizeDefinition;
-use TYPO3\CMS\Core\Imaging\ImageManipulation\Area;
-use TYPO3\CMS\Core\Resource\File;
-use TYPO3\CMS\Core\Resource\FileReference;
 use TYPO3\CMS\Extbase\Service\ImageService;
 
 class ImageResizingService
@@ -18,31 +15,36 @@ class ImageResizingService
     {
     }
 
-    public function resize(
-        File|FileReference $image,
-        SizeDefinition $sizeDefinition,
-        float $pixelDensity,
-        ?Area $crop = null,
-        ?SpecialFunction $specialFunction = null,
-        string $fileExtension = '',
-    ): ResizedImage {
-        $pixelWidth = $pixelDensity * $sizeDefinition->imageWidth;
+    public function resize(ResizeConfiguration $configuration): ?ResizedImage
+    {
+        $pixelWidth = $configuration->pixelDensity * $configuration->size->imageWidth;
         $processingInstructions = [
             'width' => $pixelWidth,
-            'crop'  => $crop,
+            'crop'  => $configuration->crop,
         ];
-        if ($fileExtension) {
-            $processingInstructions['fileExtension'] = $fileExtension;
+        if ($configuration->fileExtension) {
+            $processingInstructions['fileExtension'] = $configuration->fileExtension;
         }
-        if (SpecialFunction::Square === $specialFunction) {
+        if (SpecialFunction::Square === $configuration->specialFunction) {
             $processingInstructions['width'] = $pixelWidth . 'c';
             $processingInstructions['height'] = $pixelWidth;
         }
 
+        $processedImage = $this->imageService->applyProcessingInstructions(
+            $configuration->file,
+            $processingInstructions
+        );
+        $processedImageWidth = (float) $processedImage->getProperty('width');
+        if ($processedImageWidth < $pixelWidth) {
+            return null;
+        }
+
+        assert($processedImageWidth === $pixelWidth);
+
         return new ResizedImage(
-            $this->imageService->applyProcessingInstructions($image, $processingInstructions),
-            $sizeDefinition,
-            $pixelDensity
+            $processedImage,
+            $configuration->size,
+            $configuration->pixelDensity
         );
     }
 }

@@ -11,6 +11,9 @@ services:
     Iresults\ResponsiveImages\Service\ImageResizingService:
         public: true
 
+    Iresults\ResponsiveImages\Service\MimeTypeService:
+        public: true
+
     Iresults\ResponsiveImages\Service\SizesParser:
         public: true
 

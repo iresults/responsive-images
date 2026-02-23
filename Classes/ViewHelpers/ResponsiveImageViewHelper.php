@@ -38,7 +38,7 @@ use function is_callable;
  * ::
  *
  *      <iresultsResponsiveImages:responsiveImage
- *          image="{project.imageFile}"
+ *          image="{jpegImageFile}"
  *          widths="
  *              (max-width: 414px) 378px,
  *              (max-width: 575px) 540px,
@@ -50,21 +50,44 @@ use function is_callable;
  * Output::
  *
  *      <picture>
- *          <source srcset="image-path-378px.jpg, image-path-378px.jpg 2x" media="(max-width: 414px)">
- *          <source srcset="image-path-540px.jpg, image-path-540px.jpg 2x" media="(max-width: 575px)">
- *          <source srcset="image-path-546px.jpg, image-path-546px.jpg 2x" media="(max-width: 1399px)">
- *          <source srcset="image-path-634px.jpg, image-path-634px.jpg 2x" media="">
- *          <img src="image-path-634px.jpg" width="634" height="633" alt="">
+ *          <source width="378" height="252" type="image/jpeg" srcset="image-path-378px.jpg, image-path-378px-2x.jpg 2x" media="(max-width: 414px)">
+ *          <source width="540" height="360" type="image/jpeg" srcset="image-path-540px.jpg, image-path-540px-2x.jpg 2x" media="(max-width: 575px)">
+ *          <source width="546" height="364" type="image/jpeg" srcset="image-path-546px.jpg, image-path-546px-2x.jpg 2x" media="(max-width: 1399px)">
+ *          <source width="634" height="422" type="image/jpeg" srcset="image-path-634px.jpg, image-path-634px-2x.jpg 2x">
+ *          <img src="image-path-634px.jpg" width="634" height="422" alt="">
  *      </picture>
  *
  *
- * With additional arguments
+ * With file extension "png"
  * -------------------------
  *
  * ::
  *
  *      <iresultsResponsiveImages:responsiveImage
- *          image="{project.imageFile}"
+ *          image="{jpegImageFile}"
+ *          widths="
+ *              (max-width: 414px) 378px,
+ *              634px"
+ *          pixelDensities="1,2"
+ *          fileExtension="png"
+ *          />
+ *
+ * Output::
+ *
+ *      <picture>
+ *          <source width="378" height="252" type="image/png" srcset="image-path-378px.png, image-path-378px-2x.png 2x" media="(max-width: 414px)">
+ *          <source width="634" height="422" type="image/png" srcset="image-path-634px.png, image-path-634px-2x.png 2x">
+ *          <img src="image-path-634px.png" width="634" height="422" alt="">
+ *      </picture>
+ **
+ *
+ * With crop variant
+ * -----------------
+ *
+ * ::
+ *
+ *      <iresultsResponsiveImages:responsiveImage
+ *          image="{jpegImageFile}"
  *          widths="
  *              (max-width: 414px) 378px,
  *              (max-width: 575px) 540px,
@@ -78,11 +101,70 @@ use function is_callable;
  * Output::
  *
  *      <picture>
- *          <source srcset="image-path-378px.jpg, image-path-378px.jpg 2x" media="(max-width: 414px)">
- *          <source srcset="image-path-540px.jpg, image-path-540px.jpg 2x" media="(max-width: 575px)">
- *          <source srcset="image-path-546px.jpg, image-path-546px.jpg 2x" media="(max-width: 1399px)">
- *          <source srcset="image-path-634px.jpg, image-path-634px.jpg 2x" media="">
- *          <img src="image-path-634px.jpg" width="634" height="633" alt="">
+ *          <source width="378" height="378" type="image/jpeg" srcset="image-path-378px.jpg, image-path-378px-2x.jpg 2x" media="(max-width: 414px)">
+ *          <source width="540" height="540" type="image/jpeg" srcset="image-path-540px.jpg, image-path-540px-2x.jpg 2x" media="(max-width: 575px)">
+ *          <source width="546" height="546" type="image/jpeg" srcset="image-path-546px.jpg, image-path-546px-2x.jpg 2x" media="(max-width: 1399px)">
+ *          <source width="634" height="634" type="image/jpeg" srcset="image-path-634px.jpg, image-path-634px-2x.jpg 2x">
+ *          <img src="image-path-634px.jpg" width="634" height="634" alt="">
+ *      </picture>
+ *
+ *
+ * With `preferredFileExtension`
+ * -----------------------------
+ *
+ * ::
+ *
+ *      <iresultsResponsiveImages:responsiveImage
+ *          image="{jpegImageFile}"
+ *          widths="
+ *              (max-width: 414px) 378px,
+ *              (max-width: 575px) 540px,
+ *              (max-width: 1399px) 546px,
+ *              634px"
+ *          pixelDensities="1,2"
+ *          preferredFileExtension="webp"
+ *          />
+ *
+ * Output::
+ *
+ *      <picture>
+ *          <source width="378" height="252" type="image/webp" srcset="image-path-378px.webp, image-path-378px-2x.webp 2x" media="(max-width: 414px)">
+ *          <source width="378" height="252" type="image/jpeg" srcset="image-path-378px.jpg, image-path-378px-2x.jpg 2x" media="(max-width: 414px)">
+ *          <source width="540" height="360" type="image/webp" srcset="image-path-540px.webp, image-path-540px-2x.webp 2x" media="(max-width: 575px)">
+ *          <source width="540" height="360" type="image/jpeg" srcset="image-path-540px.jpg, image-path-540px-2x.jpg 2x" media="(max-width: 575px)">
+ *          <source width="546" height="364" type="image/webp" srcset="image-path-546px.webp, image-path-546px-2x.webp 2x" media="(max-width: 1399px)">
+ *          <source width="546" height="364" type="image/jpeg" srcset="image-path-546px.jpg, image-path-546px-2x.jpg 2x" media="(max-width: 1399px)">
+ *          <source width="634" height="422" type="image/webp" srcset="image-path-634px.webp, image-path-634px-2x.webp 2x">
+ *          <source width="634" height="422" type="image/jpeg" srcset="image-path-634px.jpg, image-path-634px-2x.jpg 2x">
+ *          <img src="image-path-634px.jpg" width="634" height="422" alt="">
+ *      </picture>
+ *
+ *
+ * Without media-queries and with `preferredFileExtension`
+ * -------------------------
+ *
+ * ::
+ *
+ *      <iresultsResponsiveImages:responsiveImage
+ *          image="{jpegImageFile}"
+ *          widths="634px"
+ *          pixelDensities="1,2"
+ *          preferredFileExtension="webp"
+ *          fileExtension="jpg"
+ *          />
+ *
+ * Output::
+ *
+ *      <picture>
+ *          <source width="378" height="378" type="image/webp" srcset="image-path-378px.webp, image-path-378px-2x.webp 2x" media="(max-width: 414px)">
+ *          <source width="378" height="378" type="image/jpeg" srcset="image-path-378px.jpg, image-path-378px-2x.jpg 2x" media="(max-width: 414px)">
+ *          <source width="540" height="540" type="image/webp" srcset="image-path-540px.webp, image-path-540px-2x.webp 2x" media="(max-width: 575px)">
+ *          <source width="540" height="540" type="image/jpeg" srcset="image-path-540px.jpg, image-path-540px-2x.jpg 2x" media="(max-width: 575px)">
+ *          <source width="546" height="546" type="image/webp" srcset="image-path-546px.webp, image-path-546px-2x.webp 2x" media="(max-width: 1399px)">
+ *          <source width="546" height="546" type="image/jpeg" srcset="image-path-546px.jpg, image-path-546px-2x.jpg 2x" media="(max-width: 1399px)">
+ *          <source width="634" height="634" type="image/webp" srcset="image-path-634px.webp, image-path-634px-2x.webp 2x">
+ *          <source width="634" height="634" type="image/jpeg" srcset="image-path-634px.jpg, image-path-634px-2x.jpg 2x">
+ *          <img src="image-path-634px.jpg" width="634" height="634" alt="">
  *      </picture>
  */
 class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
@@ -106,7 +188,6 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
     public function initializeArguments(): void
     {
         parent::initializeArguments();
-        $this->registerUniversalTagAttributes();
         $this->registerArgument(
             'alt',
             'string',
@@ -161,7 +242,13 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         $this->registerArgument(
             'fileExtension',
             'string',
-            'Custom file extension to use',
+            'File extension to use to generate main files',
+        );
+
+        $this->registerArgument(
+            'preferredFileExtension',
+            'string',
+            'Generate additional <source> entries using this file extension. These <source> entries will be add before the default entries',
         );
 
         $this->registerArgument(
@@ -194,13 +281,15 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
 
     public function render(): string
     {
-        $this->validateFileExtensionArgument($this->arguments['fileExtension']);
+        $fileExtension = $this->arguments['fileExtension'] ?? '';
+        $preferredFileExtension = $this->arguments['preferredFileExtension'] ?? '';
+        $this->validateFileExtensionArgument($fileExtension);
+        $this->validateFileExtensionArgument($preferredFileExtension);
 
         $pictureTag = $this->tag;
         $image = $this->getImage($this->arguments);
         $sizes = $this->sizesParser->parseSizes($this->arguments['widths']);
         $pixelDensities = $this->parsePixelDensities($this->arguments['pixelDensities']);
-        $fileExtension = $this->arguments['fileExtension'] ?? '';
         $useAbsoluteUri = (bool) $this->arguments['absolute'];
         $specialFunction = $this->parseSpecialFunction();
         try {
@@ -217,13 +306,14 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
                 }
             }
 
-            $imageTag = $this->sourceElementBuilder->buildImgTag(
+            $imageTagOption = $this->sourceElementBuilder->buildImgTag(
                 $sizes,
                 $image,
                 $cropInformation->area,
                 $fileExtension,
                 $useAbsoluteUri,
                 $specialFunction,
+                $this->additionalArguments
             );
 
             $pictureTagContent = $this->sourceElementBuilder->renderSourceElements(
@@ -232,26 +322,33 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
                 $image,
                 $cropInformation->area,
                 $fileExtension,
+                $preferredFileExtension,
                 $useAbsoluteUri,
                 $specialFunction,
             );
 
             // Remove the `title` attribute from <picture> and add it to <img>
             $pictureTag->removeAttribute('title');
-            $title = $this->arguments['title']
-                ?? (string) ($image->hasProperty('title') ? $image->getProperty('title') : '');
-            if ('' !== $title) {
-                $imageTag?->addAttribute('title', $title);
-            }
-            $altAttribute = $this->arguments['alt']
-                ?? ($image->hasProperty('alternative') ? $image->getProperty('alternative') : '');
-            $imageTag?->addAttribute('alt', $altAttribute);
-            $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'ismap');
-            $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'usemap');
-            $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'loading');
-            $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'decoding');
 
-            $pictureTagContent .= $imageTag?->render() ?? '';
+            if ($imageTagOption->isSome()) {
+                $imageTag = $imageTagOption->unwrap();
+                $title = $this->arguments['title']
+                    ?? (string) ($image->hasProperty('title') ? $image->getProperty('title') : '');
+                if ('' !== $title) {
+                    $imageTag->addAttribute('title', $title);
+                }
+                $altAttribute = $this->arguments['alt']
+                    ?? ($image->hasProperty('alternative') ? $image->getProperty('alternative') : '');
+                $imageTag->addAttribute('alt', $altAttribute);
+
+                $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'ismap');
+                $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'usemap');
+                $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'loading');
+                $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'decoding');
+
+                $pictureTagContent .= $imageTag->render();
+            }
+
             $this->tag->setContent($pictureTagContent);
         } catch (ResourceDoesNotExistException $e) {
             // thrown if file does not exist
@@ -303,7 +400,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         throw new UnexpectedValueException('Could not get image');
     }
 
-    private function validateFileExtensionArgument(?string $fileExtension): void
+    private function validateFileExtensionArgument(string $fileExtension): void
     {
         if (empty($fileExtension)) {
             return;
