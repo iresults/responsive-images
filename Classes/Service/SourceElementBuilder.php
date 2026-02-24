@@ -101,6 +101,11 @@ class SourceElementBuilder
         bool $useAbsoluteUri,
         ?SpecialFunction $specialFunction,
     ): string {
+        $sourceIsRenderableVectorGraphic = $this->mimeTypeService
+            ->isRenderableVectorGraphic($image->getMimeType());
+        $generatePreferredFileExtensionFile = $preferredFileExtension
+            && !$sourceIsRenderableVectorGraphic;
+
         /** @var ImageRenderingConfiguration[] $renderingConfigurations */
         $renderingConfigurations = [];
         foreach ($sizes as $size) {
@@ -117,8 +122,9 @@ class SourceElementBuilder
             // Render the `<source>` tags for the preferred file extension
             // before the default file extension `<source>` tags
             // This e.g. allows users to offer WebP images as preferred option
-            // and the image file's native type as fallback
-            if ($preferredFileExtension) {
+            // and the image file's native type as fallback (this is skipped
+            // for SVG files)
+            if ($generatePreferredFileExtensionFile) {
                 $renderingConfigurations[] = $configuration->withFileExtension(
                     $preferredFileExtension
                 );
@@ -134,13 +140,14 @@ class SourceElementBuilder
             $renderedSources,
             fn (Option $o) => $o->isSome()
         );
+
         if ($hasSources) {
-            return implode(
-                '',
-                array_map(
-                    fn (Option $o) => $o->mapOr('', fn ($tag) => $tag->render()),
-                    $renderedSources
-                )
+            return $this->mapJoin(
+                $renderedSources,
+                fn (Option $o) => $o->mapOr(
+                    '<!-- skip -->',
+                    fn ($tag) => $tag->render()
+                ),
             );
         }
 
@@ -148,7 +155,7 @@ class SourceElementBuilder
         // a `<source>` tag with the original image's width and the preferred
         // file extension (e.g. provide a WebP version even if the image could
         // not be scaled)
-        if ($preferredFileExtension) {
+        if ($generatePreferredFileExtensionFile) {
             $size = SizeDefinition::defaultSizeDefinition(
                 $image->getProperty('width')
             );
@@ -230,5 +237,22 @@ class SourceElementBuilder
         }
 
         return new Option\Some($sourceTag);
+    }
+
+    /**
+     * @template T
+     *
+     * @param callable(Option<T>):string $callable
+     * @param Option<T>[]                $collection
+     */
+    private function mapJoin(array $collection, callable $callable): string
+    {
+        return implode(
+            '',
+            array_map(
+                $callable,
+                $collection
+            )
+        );
     }
 }

@@ -7,6 +7,7 @@ namespace Iresults\ResponsiveImages\ViewHelpers;
 use InvalidArgumentException;
 use Iresults\ResponsiveImages\Domain\Enum\SpecialFunction;
 use Iresults\ResponsiveImages\Domain\ValueObject\CropInformation;
+use Iresults\ResponsiveImages\Service\MimeTypeService;
 use Iresults\ResponsiveImages\Service\SizesParser;
 use Iresults\ResponsiveImages\Service\SourceElementBuilder;
 use RuntimeException;
@@ -14,6 +15,7 @@ use TYPO3\CMS\Core\Imaging\ImageManipulation\CropVariantCollection;
 use TYPO3\CMS\Core\Resource\Exception\ResourceDoesNotExistException;
 use TYPO3\CMS\Core\Resource\File;
 use TYPO3\CMS\Core\Resource\FileReference;
+use TYPO3\CMS\Core\Resource\FileType;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3Fluid\Fluid\Core\ViewHelper\AbstractTagBasedViewHelper;
 use TYPO3Fluid\Fluid\Core\ViewHelper\Exception;
@@ -178,11 +180,14 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
 
     private readonly SourceElementBuilder $sourceElementBuilder;
 
+    private readonly MimeTypeService $mimeTypeService;
+
     public function __construct()
     {
         parent::__construct();
         $this->sizesParser = GeneralUtility::makeInstance(SizesParser::class);
         $this->sourceElementBuilder = GeneralUtility::makeInstance(SourceElementBuilder::class);
+        $this->mimeTypeService = GeneralUtility::makeInstance(MimeTypeService::class);
     }
 
     public function initializeArguments(): void
@@ -292,19 +297,19 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         $pixelDensities = $this->parsePixelDensities($this->arguments['pixelDensities']);
         $useAbsoluteUri = (bool) $this->arguments['absolute'];
         $specialFunction = $this->parseSpecialFunction();
+
         try {
-            // @phpstan-ignore argument.type
-            $cropInformation = $this->getCropInformation($image, $this->arguments);
-            if (!$pictureTag->hasAttribute('data-focus-area')) {
-                $focusArea = $cropInformation->variantCollection
-                    ->getFocusArea($cropInformation->variant);
-                if (!$focusArea->isEmpty()) {
-                    $pictureTag->addAttribute(
-                        'data-focus-area',
-                        (string) $focusArea->makeAbsoluteBasedOnFile($image)
-                    );
-                }
-            }
+            $cropInformation = $this->getCropInformation(
+                $image,
+                $this->arguments
+            );
+            $imageNeedsProcessing = $this->imageNeedsProcessing(
+                $this->arguments,
+                $image,
+                $cropInformation
+            );
+
+            $this->addFocusArea($pictureTag, $image, $cropInformation);
 
             $imageTagOption = $this->sourceElementBuilder->buildImgTag(
                 $sizes,
@@ -316,38 +321,46 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
                 $this->additionalArguments
             );
 
-            $pictureTagContent = $this->sourceElementBuilder->renderSourceElements(
-                $sizes,
-                $pixelDensities,
-                $image,
-                $cropInformation->area,
-                $fileExtension,
-                $preferredFileExtension,
-                $useAbsoluteUri,
-                $specialFunction,
-            );
+            if ($imageTagOption->isNone()) {
+                return '<!-- no default image size -->';
+            }
+
+            if ($imageNeedsProcessing) {
+                $pictureTagContent = $this->sourceElementBuilder->renderSourceElements(
+                    $sizes,
+                    $pixelDensities,
+                    $image,
+                    $cropInformation->area,
+                    $fileExtension,
+                    $preferredFileExtension,
+                    $useAbsoluteUri,
+                    $specialFunction,
+                );
+            } else {
+                $pictureTagContent = '<!-- skip processing -->';
+            }
 
             // Remove the `title` attribute from <picture> and add it to <img>
             $pictureTag->removeAttribute('title');
 
-            if ($imageTagOption->isSome()) {
-                $imageTag = $imageTagOption->unwrap();
-                $title = $this->arguments['title']
-                    ?? (string) ($image->hasProperty('title') ? $image->getProperty('title') : '');
-                if ('' !== $title) {
-                    $imageTag->addAttribute('title', $title);
-                }
-                $altAttribute = $this->arguments['alt']
-                    ?? ($image->hasProperty('alternative') ? $image->getProperty('alternative') : '');
-                $imageTag->addAttribute('alt', $altAttribute);
-
-                $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'ismap');
-                $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'usemap');
-                $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'loading');
-                $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'decoding');
-
-                $pictureTagContent .= $imageTag->render();
+            $imageTag = $imageTagOption->unwrap();
+            $title = $this->arguments['title']
+                ?? (string) ($image->hasProperty('title') ? $image->getProperty('title') : '');
+            if ('' !== $title) {
+                $imageTag->addAttribute('title', $title);
             }
+            $altAttribute = $this->arguments['alt']
+                ?? ($image->hasProperty('alternative') ? $image->getProperty('alternative') : '');
+            $imageTag->addAttribute('alt', $altAttribute);
+
+            $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'ismap');
+            $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'usemap');
+            $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'loading');
+            $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'decoding');
+
+            $this->addFocusArea($imageTag, $image, $cropInformation);
+
+            $pictureTagContent .= $imageTag->render();
 
             $this->tag->setContent($pictureTagContent);
         } catch (ResourceDoesNotExistException $e) {
@@ -417,7 +430,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
     }
 
     /**
-     * @param array{crop?:string|null, cropVariant:?string} $arguments
+     * @param array{crop?:string, cropVariant:?string}|array<string,mixed> $arguments
      */
     private function getCropInformation(File|FileReference $image, array $arguments): CropInformation
     {
@@ -472,5 +485,55 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         return isset($this->arguments['specialFunction'])
             ? SpecialFunction::from($this->arguments['specialFunction'])
             : null;
+    }
+
+    /**
+     * @param array<string,mixed> $arguments
+     */
+    private function imageNeedsProcessing(
+        array $arguments,
+        File|FileReference $image,
+        CropInformation $cropInformation,
+    ): bool {
+        if (FileType::IMAGE !== $image->getFileType()) {
+            return false;
+        }
+
+        if (!empty($arguments['fileExtension'])) {
+            return true;
+        }
+
+        if (!empty($arguments['specialFunction'])) {
+            return true;
+        }
+
+        if ($cropInformation->area) {
+            return true;
+        }
+
+        $isRenderableVectorGraphic = $this->mimeTypeService
+            ->isRenderableVectorGraphic($image->getMimeType());
+
+        // If no cropping area or file extension is provided SVGs will not
+        // be processed (even if a `preferredFileExtension` is specified).
+        // This e.g. avoids sending WebP images instead of SVG
+        return !$isRenderableVectorGraphic;
+    }
+
+    private function addFocusArea(
+        TagBuilder $tag,
+        File|FileReference $image,
+        CropInformation $cropInformation,
+    ): void {
+        if (!$tag->hasAttribute('data-focus-area')) {
+            $focusArea = $cropInformation->variantCollection
+                ->getFocusArea($cropInformation->variant);
+            if (!$focusArea->isEmpty()) {
+                $tag->addAttribute(
+                    'data-focus-area',
+                    (string) $focusArea->makeAbsoluteBasedOnFile($image)
+                );
+            }
+        }
     }
 }

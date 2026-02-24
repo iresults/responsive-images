@@ -11,8 +11,10 @@ use TYPO3\CMS\Extbase\Service\ImageService;
 
 class ImageResizingService
 {
-    public function __construct(private readonly ImageService $imageService)
-    {
+    public function __construct(
+        private readonly ImageService $imageService,
+        private readonly MimeTypeService $mimeTypeService,
+    ) {
     }
 
     public function resize(ResizeConfiguration $configuration): ?ResizedImage
@@ -35,11 +37,21 @@ class ImageResizingService
             $processingInstructions
         );
         $processedImageWidth = (float) $processedImage->getProperty('width');
-        if ($processedImageWidth < $pixelWidth) {
+
+        if ($processedImage->getIdentifier() === $configuration->file->getIdentifier()) {
             return null;
         }
 
-        assert($processedImageWidth === $pixelWidth);
+        $isRenderableVectorGraphic = $this->mimeTypeService
+            ->isRenderableVectorGraphic($processedImage->getIdentifier());
+
+        // Allow smaller processed images for SVG files, since they can be
+        // scaled smoothly by the browser
+        if (!$isRenderableVectorGraphic && $processedImageWidth < $pixelWidth) {
+            return null;
+        }
+
+        assert($isRenderableVectorGraphic || $processedImageWidth === $pixelWidth);
 
         return new ResizedImage(
             $processedImage,

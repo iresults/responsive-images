@@ -45,4 +45,16 @@ final class MimeTypeService
 
         return $this->getMimeTypeForExtension($fileExtension);
     }
+
+    /**
+     * @param non-empty-string $publicUriOrMimeType
+     */
+    public function isRenderableVectorGraphic(string $publicUriOrMimeType): bool
+    {
+        if ('image/svg+xml' === $publicUriOrMimeType) {
+            return true;
+        }
+
+        return 'image/svg+xml' === $this->getMimeTypeForUri($publicUriOrMimeType);
+    }
 }
