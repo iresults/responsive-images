@@ -311,7 +311,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
 
             $this->addFocusArea($pictureTag, $image, $cropInformation);
 
-            $imageTagOption = $this->sourceElementBuilder->buildImgTag(
+            $imageTagResult = $this->sourceElementBuilder->buildImgTag(
                 $sizes,
                 $image,
                 $cropInformation->area,
@@ -321,8 +321,13 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
                 $this->additionalArguments
             );
 
-            if ($imageTagOption->isNone()) {
-                return '<!-- no default image size -->';
+            if ($imageTagResult->isErr()) {
+                $exception = $imageTagResult->unwrapErr();
+                throw new InvalidArgumentException(
+                    $exception->getMessage(),
+                    $exception->getCode(),
+                    $exception
+                );
             }
 
             if ($imageNeedsProcessing) {
@@ -343,7 +348,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
             // Remove the `title` attribute from <picture> and add it to <img>
             $pictureTag->removeAttribute('title');
 
-            $imageTag = $imageTagOption->unwrap();
+            $imageTag = $imageTagResult->unwrap();
             $title = $this->arguments['title']
                 ?? (string) ($image->hasProperty('title') ? $image->getProperty('title') : '');
             if ('' !== $title) {

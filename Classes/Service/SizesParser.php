@@ -25,21 +25,28 @@ class SizesParser
      */
     public function parseSizes(string $sizesString): array
     {
-        $sizes = array_map('trim', explode(',', $sizesString));
+        $sizes = array_filter(
+            array_map('trim', explode(',', $sizesString)),
+            fn (string $p) => '' !== trim($p)
+        );
         $sizeDefinitions = [];
         foreach ($sizes as $size) {
             $lastSpacePosition = strrpos($size, ' ');
+            $unit = '';
             if (str_ends_with($size, 'px')) {
                 $size = substr($size, 0, -2);
+                $unit = 'px';
             }
             if (false === $lastSpacePosition) {
                 $sizeDefinitions[] = SizeDefinition::defaultSizeDefinition(
-                    $this->parseAsFloat($size)
+                    $this->parseAsFloat($size),
+                    $unit,
                 );
             } else {
                 $sizeDefinitions[] = SizeDefinition::withMediaCondition(
                     substr($size, 0, $lastSpacePosition),
-                    $this->parseAsFloat(substr($size, $lastSpacePosition + 1))
+                    $this->parseAsFloat(substr($size, $lastSpacePosition + 1)),
+                    $unit,
                 );
             }
         }

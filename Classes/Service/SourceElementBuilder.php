@@ -9,7 +9,10 @@ use Iresults\ResponsiveImages\Domain\Enum\SpecialFunction;
 use Iresults\ResponsiveImages\Domain\ValueObject\ImageRenderingConfiguration;
 use Iresults\ResponsiveImages\Domain\ValueObject\ResizeConfiguration;
 use Iresults\ResponsiveImages\Domain\ValueObject\SizeDefinition;
-use Iresults\ResponsiveImages\Option;
+use Iresults\ResponsiveImages\Exception\DefaultSizeMissingException;
+use Iresults\ResponsiveImages\Exception\ImageRenderingException;
+use Iresults\ResponsiveImages\Result;
+use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Imaging\ImageManipulation\Area;
 use TYPO3\CMS\Core\Resource\File;
 use TYPO3\CMS\Core\Resource\FileReference;
@@ -28,7 +31,7 @@ class SourceElementBuilder
      * @param SizeDefinition[]    $sizes
      * @param array<string,mixed> $additionalArguments
      *
-     * @return Option<TagBuilder>
+     * @return Result<TagBuilder,DefaultSizeMissingException>
      */
     public function buildImgTag(
         array $sizes,
@@ -38,13 +41,20 @@ class SourceElementBuilder
         bool $useAbsoluteUri,
         ?SpecialFunction $specialFunction,
         array $additionalArguments,
-    ): Option {
+    ): Result {
         $defaultSize = SizeDefinition::findDefault($sizes);
         if (!$defaultSize) {
-            return new Option\None();
+            return new Result\Err(new DefaultSizeMissingException(
+                $sizes,
+                sprintf(
+                    'No default size definition found in `%s`',
+                    implode(', ', $sizes)
+                ),
+                1772113716
+            ));
         }
 
-        $resizedFallbackImage = $this->imageResizingService->resize(
+        $resizedFallbackImageResult = $this->imageResizingService->resize(
             new ResizeConfiguration(
                 size: $defaultSize,
                 pixelDensity: 1.0,
@@ -62,7 +72,8 @@ class SourceElementBuilder
             }
         }
 
-        if ($resizedFallbackImage) {
+        if ($resizedFallbackImageResult->isOk()) {
+            $resizedFallbackImage = $resizedFallbackImageResult->unwrap();
             $uri = $resizedFallbackImage->getPublicUrl($useAbsoluteUri);
 
             $imageTag->addAttribute('src', $uri);
@@ -84,7 +95,7 @@ class SourceElementBuilder
             $imageTag->addAttribute('height', $image->getProperty('height'));
         }
 
-        return new Option\Some($imageTag);
+        return new Result\Ok($imageTag);
     }
 
     /**
@@ -136,18 +147,22 @@ class SourceElementBuilder
             $this->buildSourceTag(...),
             $renderingConfigurations
         );
+
+        $handleOkResult = fn (TagBuilder $tag) => $tag->render();
+        $handleErrorResult = fn (ImageRenderingException $e) => $this->addDebugInformation()
+            ? '<!-- ' . $e->configuration->size->imageWidth . ' -->'
+            : '';
+
         $hasSources = null !== ArrayUtility::find(
             $renderedSources,
-            fn (Option $o) => $o->isSome()
+            fn (Result $r) => $r->isOk()
         );
 
         if ($hasSources) {
             return $this->mapJoin(
                 $renderedSources,
-                fn (Option $o) => $o->mapOr(
-                    '<!-- skip -->',
-                    fn ($tag) => $tag->render()
-                ),
+                $handleOkResult,
+                $handleErrorResult
             );
         }
 
@@ -157,7 +172,8 @@ class SourceElementBuilder
         // not be scaled)
         if ($generatePreferredFileExtensionFile) {
             $size = SizeDefinition::defaultSizeDefinition(
-                $image->getProperty('width')
+                $image->getProperty('width'),
+                'px'
             );
 
             $configuration = new ImageRenderingConfiguration(
@@ -171,35 +187,36 @@ class SourceElementBuilder
             );
 
             return $this->buildSourceTag($configuration)
-                ->mapOr('', fn (TagBuilder $tag) => $tag->render());
+                ->doMatch($handleOkResult, $handleErrorResult);
         }
 
         return '';
     }
 
     /**
-     * @return Option<TagBuilder>
+     * @return Result<TagBuilder,ImageRenderingException>
      */
     private function buildSourceTag(
         ImageRenderingConfiguration $configuration,
-    ): Option {
+    ): Result {
         $sourceTag = new TagBuilder('source');
         $srcsetOutput = [];
         $publicUri = '';
         foreach ($configuration->pixelDensities as $pixelDensity) {
-            $resizedImage = $this->imageResizingService->resize(
+            $resizedImageResult = $this->imageResizingService->resize(
                 ResizeConfiguration::fromRenderingConfigurationForPixelDensity(
                     $configuration,
                     $pixelDensity
                 )
             );
 
-            if (null === $resizedImage) {
+            if ($resizedImageResult->isErr()) {
                 // Image could not be resized to the requested size -> do not
                 // create an entry for it
                 continue;
             }
 
+            $resizedImage = $resizedImageResult->unwrap();
             $publicUri = $resizedImage->getPublicUrl($configuration->useAbsoluteUri);
             $srcsetLine = $publicUri;
             if (1.0 !== $resizedImage->pixelDensity) {
@@ -223,7 +240,11 @@ class SourceElementBuilder
         if (empty($srcsetOutput)) {
             // No srcset images have been generated (e.g. because the source
             // files are to small)
-            return new Option\None();
+            return new Result\Err(new ImageRenderingException(
+                $configuration,
+                'No `srcset` images were rendered',
+                1772113741
+            ));
         }
 
         $mimeType = $this->mimeTypeService->getMimeTypeForUri($publicUri);
@@ -236,23 +257,33 @@ class SourceElementBuilder
             $sourceTag->addAttribute('media', $configuration->size->mediaCondition);
         }
 
-        return new Option\Some($sourceTag);
+        return new Result\Ok($sourceTag);
     }
 
     /**
      * @template T
+     * @template E
      *
-     * @param callable(Option<T>):string $callable
-     * @param Option<T>[]                $collection
+     * @param Result<T,E>[]       $collection
+     * @param callable(T): string $ok
+     * @param callable(E): string $err
      */
-    private function mapJoin(array $collection, callable $callable): string
-    {
+    private function mapJoin(
+        array $collection,
+        callable $ok,
+        callable $err,
+    ): string {
         return implode(
             '',
             array_map(
-                $callable,
+                fn (Result $r) => $r->doMatch($ok, $err),
                 $collection
             )
         );
+    }
+
+    private function addDebugInformation(): bool
+    {
+        return Environment::getContext()->isDevelopment();
     }
 }
