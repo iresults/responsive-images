@@ -21,6 +21,7 @@ final readonly class ImageRenderingConfiguration
         public readonly string $fileExtension,
         public readonly bool $useAbsoluteUri,
         public readonly ?SpecialFunction $specialFunction,
+        public readonly bool $allowSmallerWidth = false,
     ) {
     }
 
@@ -37,6 +38,7 @@ final readonly class ImageRenderingConfiguration
             fileExtension: $fileExtension,
             useAbsoluteUri: $this->useAbsoluteUri,
             specialFunction: $this->specialFunction,
+            allowSmallerWidth: $this->allowSmallerWidth
         );
     }
 }

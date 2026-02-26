@@ -19,6 +19,7 @@ final readonly class ResizeConfiguration
         public readonly ?Area $crop,
         public readonly string $fileExtension,
         public readonly ?SpecialFunction $specialFunction,
+        public readonly bool $allowSmallerWidth,
     ) {
     }
 
@@ -33,6 +34,7 @@ final readonly class ResizeConfiguration
             crop: $configuration->crop,
             fileExtension: $configuration->fileExtension,
             specialFunction: $configuration->specialFunction,
+            allowSmallerWidth: $configuration->allowSmallerWidth,
         );
     }
 }

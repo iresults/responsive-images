@@ -62,6 +62,7 @@ class SourceElementBuilder
                 crop: $crop,
                 fileExtension: $fileExtension,
                 specialFunction: $specialFunction,
+                allowSmallerWidth: true
             )
         );
 
@@ -150,7 +151,12 @@ class SourceElementBuilder
 
         $handleOkResult = fn (TagBuilder $tag) => $tag->render();
         $handleErrorResult = fn (ImageRenderingException $e) => $this->addDebugInformation()
-            ? '<!-- ' . $e->configuration->size->imageWidth . ' -->'
+            ? sprintf(
+                '<!-- %s @%s [%s] -->',
+                $e->configuration->fileExtension,
+                $e->configuration->size->imageWidth,
+                $e->configuration->crop
+            )
             : '';
 
         $hasSources = null !== ArrayUtility::find(

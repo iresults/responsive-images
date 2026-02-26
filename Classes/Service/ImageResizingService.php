@@ -41,7 +41,6 @@ class ImageResizingService
             $configuration->file,
             $processingInstructions
         );
-        $processedImageWidth = (float) $processedImage->getProperty('width');
 
         if ($processedImage->getIdentifier() === $configuration->file->getIdentifier()) {
             return new Result\Err(new ImageResizeException(
@@ -51,20 +50,22 @@ class ImageResizingService
             ));
         }
 
+        $processedImageWidth = (float) $processedImage->getProperty('width');
+
+        // Automatically allow smaller processed images for SVG files, since
+        // they can be scaled smoothly by the browser
         $isRenderableVectorGraphic = $this->mimeTypeService
             ->isRenderableVectorGraphic($processedImage->getIdentifier());
-
-        // Allow smaller processed images for SVG files, since they can be
-        // scaled smoothly by the browser
-        if (!$isRenderableVectorGraphic && $processedImageWidth < $pixelWidth) {
+        $ignoreImageWidth = $configuration->allowSmallerWidth || $isRenderableVectorGraphic;
+        if (!$ignoreImageWidth && $processedImageWidth < $pixelWidth) {
             return new Result\Err(new ImageResizeException(
                 $configuration,
-                'Processed image width too small',
+                'Processed image width too small (' . $processedImageWidth . ' < ' . $pixelWidth . ')',
                 1772113759
             ));
         }
 
-        assert($isRenderableVectorGraphic || $processedImageWidth === $pixelWidth);
+        assert($ignoreImageWidth || $processedImageWidth === $pixelWidth);
 
         return new Result\Ok(new ResizedImage(
             $processedImage,
