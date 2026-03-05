@@ -11,6 +11,7 @@ use Iresults\ResponsiveImages\Service\MimeTypeService;
 use Iresults\ResponsiveImages\Service\SizesParser;
 use Iresults\ResponsiveImages\Service\SourceElementBuilder;
 use RuntimeException;
+use Stringable;
 use TYPO3\CMS\Core\Imaging\ImageManipulation\CropVariantCollection;
 use TYPO3\CMS\Core\Resource\Exception\ResourceDoesNotExistException;
 use TYPO3\CMS\Core\Resource\File;
@@ -168,6 +169,20 @@ use function is_callable;
  *          <source width="634" height="634" type="image/jpeg" srcset="image-path-634px.jpg, image-path-634px-2x.jpg 2x">
  *          <img src="image-path-634px.jpg" width="634" height="634" alt="">
  *      </picture>
+ *
+ * @phpstan-type Arguments array{
+ *     widths:string,
+ *     pixelDensities:string,
+ *     crop?:string|bool,
+ *     cropVariant:string,
+ *     specialFunction:?string,
+ *     absolute:bool,
+ *     fileExtension:?string,
+ *     preferredFileExtension:?string
+ * }
+ *
+ * @property Arguments           $arguments
+ * @property array<string,mixed> $additionalArguments
  */
 class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
 {
@@ -355,7 +370,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
                 $imageTag->addAttribute('title', $title);
             }
             $altAttribute = $this->arguments['alt']
-                ?? ($image->hasProperty('alternative') ? $image->getProperty('alternative') : '');
+                ?? (string) ($image->hasProperty('alternative') ? $image->getProperty('alternative') : '');
             $imageTag->addAttribute('alt', $altAttribute);
 
             $this->addAttributeIfArgumentIsSet($imageTag, $this->arguments, 'ismap');
@@ -386,14 +401,16 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
     }
 
     /**
-     * @param array{image?:File|FileReference|object} $arguments
+     * @param array{image?:File|FileReference|object}|array<string,mixed> $arguments
      */
     private function getImage(array $arguments): File|FileReference
     {
+        $image = $arguments['image'] ?? null;
+
         if (empty($arguments['image'])) {
             throw new InvalidArgumentException('Missing image');
         }
-        $image = $arguments['image'];
+        assert(is_object($image));
         if ($image instanceof File || $image instanceof FileReference) {
             // We already received a valid file and therefore just return it
             return $image;
@@ -424,6 +441,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
             return;
         }
 
+        /** @var string $allowedImageFileExtensions */
         $allowedImageFileExtensions = $GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext'];
         if (!GeneralUtility::inList($allowedImageFileExtensions, $fileExtension)) {
             throw new Exception(
@@ -435,7 +453,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
     }
 
     /**
-     * @param array{crop?:string, cropVariant:?string}|array<string,mixed> $arguments
+     * @param Arguments $arguments
      */
     private function getCropInformation(File|FileReference $image, array $arguments): CropInformation
     {
@@ -443,6 +461,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         if (null === $cropString && $image->hasProperty('crop') && $image->getProperty('crop')) {
             $cropString = $image->getProperty('crop');
         }
+        assert(is_null($cropString) || is_string($cropString) || $cropString instanceof Stringable);
         $variantCollection = CropVariantCollection::create((string) $cropString);
         $variant = $arguments['cropVariant'] ?: 'default';
         $cropArea = $variantCollection->getCropArea($variant);
@@ -473,7 +492,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
     }
 
     /**
-     * @param array<string, string|null> $arguments
+     * @param array<string, string|bool|null> $arguments
      */
     private function addAttributeIfArgumentIsSet(
         TagBuilder $imageTag,

@@ -11,7 +11,7 @@ use Throwable;
 class ImageRenderingException extends RuntimeException
 {
     public function __construct(
-        public readonly ?ImageRenderingConfiguration $configuration,
+        public readonly ImageRenderingConfiguration $configuration,
         string $message = '',
         int $code = 0,
         ?Throwable $previous = null,

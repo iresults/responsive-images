@@ -87,9 +87,10 @@ class SourceElementBuilder
                 $resizedFallbackImage->file->getProperty('height')
             );
         } else {
-            $uri = $useAbsoluteUri
-                ? GeneralUtility::locationHeaderUrl($image->getPublicUrl())
-                : $image->getPublicUrl();
+            $publicUrl = $image->getPublicUrl();
+            $uri = $useAbsoluteUri && $publicUrl
+                ? GeneralUtility::locationHeaderUrl($publicUrl)
+                : $publicUrl;
 
             $imageTag->addAttribute('src', $uri);
             $imageTag->addAttribute('width', $image->getProperty('width'));
@@ -253,7 +254,7 @@ class SourceElementBuilder
             ));
         }
 
-        $mimeType = $this->mimeTypeService->getMimeTypeForUri($publicUri);
+        $mimeType = $this->mimeTypeService->getMimeTypeForUri((string) $publicUri);
         if ($mimeType) {
             $sourceTag->addAttribute('type', $mimeType);
         }
@@ -268,7 +269,7 @@ class SourceElementBuilder
 
     /**
      * @template T
-     * @template E
+     * @template E of \Throwable
      *
      * @param Result<T,E>[]       $collection
      * @param callable(T): string $ok

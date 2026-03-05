@@ -8,7 +8,7 @@ use Iresults\ResponsiveImages\Result\ResultException;
 
 /**
  * @template T
- * @template E
+ * @template E of \Throwable
  */
 abstract class Result
 {
