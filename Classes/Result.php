@@ -80,4 +80,20 @@ abstract class Result
             return $err($this->value);
         }
     }
+
+    /**
+     * @template R of \Throwable
+     *
+     * @param callable(E): R $callback
+     *
+     * @return Result<T, R>
+     */
+    public function mapErr(callable $callback): Result
+    {
+        if ($this->isOk()) {
+            return clone $this;
+        } else {
+            return new Result\Err($callback($this->value));
+        }
+    }
 }

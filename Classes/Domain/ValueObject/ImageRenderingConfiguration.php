@@ -14,14 +14,15 @@ final readonly class ImageRenderingConfiguration
      * @param non-empty-array<float> $pixelDensities
      */
     public function __construct(
-        public readonly SizeDefinition $size,
-        public readonly array $pixelDensities,
-        public readonly File|FileReference $file,
-        public readonly ?Area $crop,
-        public readonly string $fileExtension,
-        public readonly bool $useAbsoluteUri,
-        public readonly ?SpecialFunction $specialFunction,
-        public readonly bool $allowSmallerWidth = false,
+        public SizeDefinition $size,
+        public array $pixelDensities,
+        public File|FileReference $file,
+        public ?Area $crop,
+        public string $fileExtension,
+        public bool $useAbsoluteUri,
+        public ?SpecialFunction $specialFunction,
+        public ?string $fileNamePrefix,
+        public bool $allowSmallerWidth = false,
     ) {
     }
 
@@ -38,7 +39,8 @@ final readonly class ImageRenderingConfiguration
             fileExtension: $fileExtension,
             useAbsoluteUri: $this->useAbsoluteUri,
             specialFunction: $this->specialFunction,
-            allowSmallerWidth: $this->allowSmallerWidth
+            fileNamePrefix: $this->fileNamePrefix,
+            allowSmallerWidth: $this->allowSmallerWidth,
         );
     }
 }

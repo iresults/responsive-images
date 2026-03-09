@@ -5,22 +5,28 @@ declare(strict_types=1);
 namespace Iresults\ResponsiveImages\Service;
 
 use Iresults\ResponsiveImages\Domain\Enum\SpecialFunction;
+use Iresults\ResponsiveImages\Domain\ValueObject\ProcessedImageInterface;
 use Iresults\ResponsiveImages\Domain\ValueObject\ResizeConfiguration;
 use Iresults\ResponsiveImages\Domain\ValueObject\ResizedImage;
 use Iresults\ResponsiveImages\Exception\ImageResizeException;
 use Iresults\ResponsiveImages\Result;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
 use TYPO3\CMS\Extbase\Service\ImageService;
 
-class ImageResizingService
+class ImageResizingService implements LoggerAwareInterface
 {
+    use LoggerAwareTrait;
+
     public function __construct(
         private readonly ImageService $imageService,
         private readonly MimeTypeService $mimeTypeService,
+        private readonly ImagePathService $imagePathService,
     ) {
     }
 
     /**
-     * @return Result<ResizedImage,ImageResizeException>
+     * @return Result<covariant ProcessedImageInterface,ImageResizeException>
      */
     public function resize(ResizeConfiguration $configuration): Result
     {
@@ -67,10 +73,31 @@ class ImageResizingService
 
         assert($ignoreImageWidth || $processedImageWidth === $pixelWidth);
 
-        return new Result\Ok(new ResizedImage(
+        $resizedImage = new ResizedImage(
             $processedImage,
             $configuration->size,
             $configuration->pixelDensity
-        ));
+        );
+        if ($configuration->fileNamePrefix) {
+            if ($resizedImage->isStoredLocally()) {
+                return $this->imagePathService->createNamedFile(
+                    $resizedImage,
+                    $configuration->fileNamePrefix
+                )->mapErr(fn ($e) => new ImageResizeException(
+                    $configuration,
+                    'File could not create named file',
+                    1772714100,
+                    $e
+                ));
+            } else {
+                $this->logger?->warning(
+                    'Could not create named file, because source {source} is not stored locally',
+                    ['source' => $resizedImage->getIdentifier()]
+                );
+                // Fall through to use the remote file
+            }
+        }
+
+        return new Result\Ok($resizedImage);
     }
 }

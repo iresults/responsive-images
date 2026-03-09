@@ -12,6 +12,8 @@ use Iresults\ResponsiveImages\Domain\ValueObject\SizeDefinition;
 use Iresults\ResponsiveImages\Exception\DefaultSizeMissingException;
 use Iresults\ResponsiveImages\Exception\ImageRenderingException;
 use Iresults\ResponsiveImages\Result;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Imaging\ImageManipulation\Area;
 use TYPO3\CMS\Core\Resource\File;
@@ -19,8 +21,10 @@ use TYPO3\CMS\Core\Resource\FileReference;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3Fluid\Fluid\Core\ViewHelper\TagBuilder;
 
-class SourceElementBuilder
+class SourceElementBuilder implements LoggerAwareInterface
 {
+    use LoggerAwareTrait;
+
     public function __construct(
         private readonly ImageResizingService $imageResizingService,
         private readonly MimeTypeService $mimeTypeService,
@@ -40,6 +44,7 @@ class SourceElementBuilder
         string $fileExtension,
         bool $useAbsoluteUri,
         ?SpecialFunction $specialFunction,
+        ?string $fileNamePrefix,
         array $additionalArguments,
     ): Result {
         $defaultSize = SizeDefinition::findDefault($sizes);
@@ -62,7 +67,8 @@ class SourceElementBuilder
                 crop: $crop,
                 fileExtension: $fileExtension,
                 specialFunction: $specialFunction,
-                allowSmallerWidth: true
+                allowSmallerWidth: true,
+                fileNamePrefix: $fileNamePrefix
             )
         );
 
@@ -80,11 +86,11 @@ class SourceElementBuilder
             $imageTag->addAttribute('src', $uri);
             $imageTag->addAttribute(
                 'width',
-                $resizedFallbackImage->file->getProperty('width')
+                (string) $resizedFallbackImage->getProcessedWidth()
             );
             $imageTag->addAttribute(
                 'height',
-                $resizedFallbackImage->file->getProperty('height')
+                (string) $resizedFallbackImage->getProcessedHeight()
             );
         } else {
             $publicUrl = $image->getPublicUrl();
@@ -112,6 +118,7 @@ class SourceElementBuilder
         string $fileExtension,
         string $preferredFileExtension,
         bool $useAbsoluteUri,
+        ?string $fileNamePrefix,
         ?SpecialFunction $specialFunction,
     ): string {
         $sourceIsRenderableVectorGraphic = $this->mimeTypeService
@@ -130,6 +137,7 @@ class SourceElementBuilder
                 fileExtension: $fileExtension,
                 useAbsoluteUri: $useAbsoluteUri,
                 specialFunction: $specialFunction,
+                fileNamePrefix: $fileNamePrefix
             );
 
             // Render the `<source>` tags for the preferred file extension
@@ -151,14 +159,7 @@ class SourceElementBuilder
         );
 
         $handleOkResult = fn (TagBuilder $tag) => $tag->render();
-        $handleErrorResult = fn (ImageRenderingException $e) => $this->addDebugInformation()
-            ? sprintf(
-                '<!-- %s @%s [%s] -->',
-                $e->configuration->fileExtension,
-                $e->configuration->size->imageWidth,
-                $e->configuration->crop
-            )
-            : '';
+        $handleErrorResult = $this->handleErrorResult(...);
 
         $hasSources = null !== ArrayUtility::find(
             $renderedSources,
@@ -191,6 +192,7 @@ class SourceElementBuilder
                 fileExtension: $preferredFileExtension,
                 useAbsoluteUri: $useAbsoluteUri,
                 specialFunction: $specialFunction,
+                fileNamePrefix: $fileNamePrefix,
             );
 
             return $this->buildSourceTag($configuration)
@@ -226,18 +228,18 @@ class SourceElementBuilder
             $resizedImage = $resizedImageResult->unwrap();
             $publicUri = $resizedImage->getPublicUrl($configuration->useAbsoluteUri);
             $srcsetLine = $publicUri;
-            if (1.0 !== $resizedImage->pixelDensity) {
-                $srcsetLine .= ' ' . $resizedImage->pixelDensity . 'x';
+            if (1.0 !== $resizedImage->getPixelDensity()) {
+                $srcsetLine .= ' ' . $resizedImage->getPixelDensity() . 'x';
             }
 
             if (empty($srcsetOutput)) {
                 $sourceTag->addAttribute(
                     'width',
-                    $resizedImage->file->getProperty('width')
+                    (string) $resizedImage->getProcessedWidth()
                 );
                 $sourceTag->addAttribute(
                     'height',
-                    $resizedImage->file->getProperty('height')
+                    (string) $resizedImage->getProcessedHeight()
                 );
             }
 
@@ -286,6 +288,25 @@ class SourceElementBuilder
                 fn (Result $r) => $r->doMatch($ok, $err),
                 $collection
             )
+        );
+    }
+
+    private function handleErrorResult(ImageRenderingException $e): string
+    {
+        $this->logger?->debug(
+            'Could not generate processed images for file "{filename}"',
+            ['exception' => $e]
+        );
+
+        if (!$this->addDebugInformation()) {
+            return '';
+        }
+
+        return sprintf(
+            '<!-- %s @%s [%s] -->',
+            $e->configuration->fileExtension,
+            $e->configuration->size->imageWidth,
+            $e->configuration->crop
         );
     }
 

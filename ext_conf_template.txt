@@ -1,0 +1,2 @@
+# cat=basic/enable/050; type=string; label=Asset directory: Path inside the installations document root that will be used to store symlinks to processed files
+assetDirectory = image-assets

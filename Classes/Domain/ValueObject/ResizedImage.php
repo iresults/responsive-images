@@ -11,9 +11,9 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 final readonly class ResizedImage implements ProcessedImageInterface
 {
     public function __construct(
-        public readonly ProcessedFile $file,
-        public readonly SizeDefinition $sizeDefinition,
-        public readonly float $pixelDensity,
+        private ProcessedFile $file,
+        public SizeDefinition $sizeDefinition,
+        private float $pixelDensity,
     ) {
     }
 
@@ -47,6 +47,9 @@ final readonly class ResizedImage implements ProcessedImageInterface
         return $this->file->getProperty('height');
     }
 
+    /**
+     * @see \TYPO3\CMS\Core\Resource\Processing\TaskInterface::getConfigurationChecksum()
+     */
     public function getConfigurationChecksum(): string
     {
         return $this->file->getTask()->getConfigurationChecksum();

@@ -178,7 +178,8 @@ use function is_callable;
  *     specialFunction:?string,
  *     absolute:bool,
  *     fileExtension:?string,
- *     preferredFileExtension:?string
+ *     preferredFileExtension:?string,
+ *     fileNamePrefix:?string,
  * }
  *
  * @property Arguments           $arguments
@@ -297,6 +298,12 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
             'string',
             'Special function to apply when manipulating the images (e.g. "square")',
         );
+
+        $this->registerArgument(
+            'fileNamePrefix',
+            'string',
+            'A prefix for the file name of processed images (experimental)',
+        );
     }
 
     public function render(): string
@@ -311,6 +318,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
         $sizes = $this->sizesParser->parseSizes($this->arguments['widths']);
         $pixelDensities = $this->parsePixelDensities($this->arguments['pixelDensities']);
         $useAbsoluteUri = (bool) $this->arguments['absolute'];
+        $fileNamePrefix = $this->arguments['fileNamePrefix'];
         $specialFunction = $this->parseSpecialFunction();
 
         try {
@@ -333,6 +341,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
                 $fileExtension,
                 $useAbsoluteUri,
                 $specialFunction,
+                $fileNamePrefix,
                 $this->additionalArguments
             );
 
@@ -354,6 +363,7 @@ class ResponsiveImageViewHelper extends AbstractTagBasedViewHelper
                     $fileExtension,
                     $preferredFileExtension,
                     $useAbsoluteUri,
+                    $fileNamePrefix,
                     $specialFunction,
                 );
             } else {

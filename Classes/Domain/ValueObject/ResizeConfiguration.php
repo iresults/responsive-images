@@ -13,13 +13,14 @@ final readonly class ResizeConfiguration
      * @param File|FileReference $file Accept `FileReference` which may contain cropping information
      */
     public function __construct(
-        public readonly SizeDefinition $size,
-        public readonly float $pixelDensity,
-        public readonly File|FileReference $file,
-        public readonly ?Area $crop,
-        public readonly string $fileExtension,
-        public readonly ?SpecialFunction $specialFunction,
-        public readonly bool $allowSmallerWidth,
+        public SizeDefinition $size,
+        public float $pixelDensity,
+        public File|FileReference $file,
+        public ?Area $crop,
+        public string $fileExtension,
+        public ?SpecialFunction $specialFunction,
+        public bool $allowSmallerWidth,
+        public ?string $fileNamePrefix,
     ) {
     }
 
@@ -35,6 +36,7 @@ final readonly class ResizeConfiguration
             fileExtension: $configuration->fileExtension,
             specialFunction: $configuration->specialFunction,
             allowSmallerWidth: $configuration->allowSmallerWidth,
+            fileNamePrefix: $configuration->fileNamePrefix,
         );
     }
 }
