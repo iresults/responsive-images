@@ -295,7 +295,10 @@ class SourceElementBuilder implements LoggerAwareInterface
     {
         $this->logger?->debug(
             'Could not generate processed images for file "{filename}"',
-            ['exception' => $e]
+            [
+                'filename'  => $e->configuration->file->getPublicUrl(),
+                'exception' => $e,
+            ]
         );
 
         if (!$this->addDebugInformation()) {
