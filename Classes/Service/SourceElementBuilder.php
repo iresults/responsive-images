@@ -301,20 +301,23 @@ class SourceElementBuilder implements LoggerAwareInterface
             ]
         );
 
-        if (!$this->addDebugInformation()) {
+        if (!Environment::getContext()->isDevelopment()) {
             return '';
         }
 
-        return sprintf(
-            '<!-- %s @%s [%s] -->',
-            $e->configuration->fileExtension,
-            $e->configuration->size->imageWidth,
-            $e->configuration->crop
-        );
-    }
+        $extensionString = $e->configuration->fileExtension
+            ? ' for extension' . $e->configuration->fileExtension
+            : '';
+        $cropping = $e->configuration->crop
+            ? ' for crop' . $e->configuration->crop
+            : '';
 
-    private function addDebugInformation(): bool
-    {
-        return Environment::getContext()->isDevelopment();
+        return sprintf(
+            '<!-- Could not generate processed images for file "%s": [%s]%s%s -->',
+            htmlspecialchars($e->configuration->file->getPublicUrl(), ENT_NOQUOTES),
+            htmlspecialchars((string) $e->configuration->size, ENT_NOQUOTES),
+            htmlspecialchars($extensionString, ENT_NOQUOTES),
+            htmlspecialchars($cropping, ENT_NOQUOTES),
+        );
     }
 }
