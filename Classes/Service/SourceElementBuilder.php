@@ -312,9 +312,11 @@ class SourceElementBuilder implements LoggerAwareInterface
             ? ' for crop' . $e->configuration->crop
             : '';
 
+        $publicUrl = (string) $e->configuration->file->getPublicUrl();
+
         return sprintf(
             '<!-- Could not generate processed images for file "%s": [%s]%s%s -->',
-            htmlspecialchars($e->configuration->file->getPublicUrl(), ENT_NOQUOTES),
+            htmlspecialchars($publicUrl, ENT_NOQUOTES),
             htmlspecialchars((string) $e->configuration->size, ENT_NOQUOTES),
             htmlspecialchars($extensionString, ENT_NOQUOTES),
             htmlspecialchars($cropping, ENT_NOQUOTES),
