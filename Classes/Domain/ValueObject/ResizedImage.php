@@ -6,6 +6,7 @@ namespace Iresults\ResponsiveImages\Domain\ValueObject;
 
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Resource\ProcessedFile;
+use TYPO3\CMS\Core\Resource\Processing\TaskTypeRegistry;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 final readonly class ResizedImage implements ProcessedImageInterface
@@ -52,7 +53,14 @@ final readonly class ResizedImage implements ProcessedImageInterface
      */
     public function getConfigurationChecksum(): string
     {
-        return $this->file->getTask()->getConfigurationChecksum();
+        $taskTypeRegistry = GeneralUtility::makeInstance(TaskTypeRegistry::class);
+        $task = $taskTypeRegistry->getTaskForType(
+            $this->file->getTaskIdentifier(),
+            $this->file,
+            $this->file->getProcessingConfiguration()
+        );
+
+        return $task->getConfigurationChecksum();
     }
 
     public function getExtension(): string
